@@ -1,0 +1,255 @@
+package com.example.smartpace.ui.screens.run
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.example.smartpace.navigation.Screen
+import kotlinx.coroutines.delay
+
+@Composable
+fun RunScreen(navController: NavController) {
+    var isRunning by remember { mutableStateOf(true) }
+    var isPaused by remember { mutableStateOf(false) }
+    var elapsedSeconds by remember { mutableStateOf(0) }
+    var distanceKm by remember { mutableStateOf(0.0) }
+    var showStopDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isRunning, isPaused) {
+        while (isRunning && !isPaused) {
+            delay(1000L)
+            elapsedSeconds++
+            distanceKm += 0.0025
+        }
+    }
+
+    val minutes = elapsedSeconds / 60
+    val seconds = elapsedSeconds % 60
+    val timeFormatted = "%02d:%02d".format(minutes, seconds)
+    val distFormatted = "%.2f".format(distanceKm)
+    val paceFormatted = if (distanceKm > 0.01) {
+        val paceSeconds = (elapsedSeconds / distanceKm).toInt()
+        "%d:%02d".format(paceSeconds / 60, paceSeconds % 60)
+    } else "--:--"
+
+    if (showStopDialog) {
+        AlertDialog(
+            onDismissRequest = { showStopDialog = false },
+            title = { Text("Encerrar corrida?", fontWeight = FontWeight.Bold) },
+            text = { Text("Deseja salvar e encerrar a corrida atual?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showStopDialog = false
+                        isRunning = false
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Run.route) { inclusive = true }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
+                ) { Text("Salvar e sair") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showStopDialog = false }) {
+                    Text("Continuar", color = Color(0xFF3B82F6))
+                }
+            }
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8FAFC))
+    ) {
+        // Status Bar
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF0F172A))
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (isPaused) Color(0xFFFBBF24) else Color(0xFF22C55E))
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isPaused) "PAUSADO" else "EM ANDAMENTO",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                }
+                OutlinedButton(
+                    onClick = {},
+                    shape = RoundedCornerShape(20.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Warning, contentDescription = null,
+                        modifier = Modifier.size(14.dp), tint = Color(0xFF94A3B8)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Sinalizar problema", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                }
+            }
+        }
+
+        // Métricas
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RunMetricItem(value = timeFormatted, label = "TEMPO")
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFF3B82F6), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(distFormatted, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("KM", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f), letterSpacing = 1.sp)
+                    }
+                }
+                RunMetricItem(value = paceFormatted, label = "MIN/KM")
+            }
+        }
+
+        // Mapa simulado
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFFE8EDF2))
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val streetColor = Color(0xFFFFFFFF)
+                for (i in 0..8) {
+                    val y = size.height * (i / 8f)
+                    drawLine(
+                        color = streetColor,
+                        start = Offset(0f, y),
+                        end = Offset(size.width, y),
+                        strokeWidth = if (i % 2 == 0) 6f else 3f
+                    )
+                }
+                for (i in 0..6) {
+                    val x = size.width * (i / 6f)
+                    drawLine(
+                        color = streetColor,
+                        start = Offset(x, 0f),
+                        end = Offset(x, size.height),
+                        strokeWidth = if (i % 2 == 0) 6f else 3f
+                    )
+                }
+                val path = Path()
+                path.moveTo(size.width * 0.25f, size.height * 0.75f)
+                path.lineTo(size.width * 0.25f, size.height * 0.35f)
+                path.lineTo(size.width * 0.55f, size.height * 0.35f)
+                path.lineTo(size.width * 0.55f, size.height * 0.2f)
+                drawPath(
+                    path,
+                    color = Color(0xFF3B82F6),
+                    style = Stroke(width = 8f, cap = StrokeCap.Round)
+                )
+                drawCircle(color = Color.White, radius = 16f, center = Offset(size.width * 0.55f, size.height * 0.2f))
+                drawCircle(color = Color(0xFF3B82F6), radius = 11f, center = Offset(size.width * 0.55f, size.height * 0.2f))
+                drawCircle(color = Color(0xFF94A3B8), radius = 8f, center = Offset(size.width * 0.25f, size.height * 0.75f))
+            }
+        }
+
+        // Controles
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFF1F5F9)),
+                contentAlignment = Alignment.Center
+            ) {
+                IconButton(onClick = { isPaused = !isPaused }) {
+                    Icon(
+                        Icons.Default.Pause, contentDescription = "Pausar",
+                        tint = Color(0xFF64748B), modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(24.dp))
+            Box(
+                modifier = Modifier
+                    .size(68.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF0F172A)),
+                contentAlignment = Alignment.Center
+            ) {
+                IconButton(onClick = { showStopDialog = true }) {
+                    Icon(
+                        Icons.Default.Stop, contentDescription = "Parar",
+                        tint = Color.White, modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(24.dp))
+            Spacer(modifier = Modifier.size(56.dp))
+        }
+    }
+}
+
+@Composable
+fun RunMetricItem(value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+        Text(label, fontSize = 11.sp, color = Color(0xFF94A3B8), letterSpacing = 1.sp)
+    }
+}
