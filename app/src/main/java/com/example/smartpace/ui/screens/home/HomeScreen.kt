@@ -8,6 +8,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -15,11 +17,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.smartpace.model.Run
 import com.example.smartpace.repository.MockData
+import com.example.smartpace.viewmodel.ProfileViewModel
+import com.example.smartpace.viewmodel.RunViewModel
 
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreen(
+    navController: NavController,
+    runViewModel: RunViewModel = viewModel(),
+    profileViewModel: ProfileViewModel = viewModel()
+) {
+    val runs by runViewModel.runs.collectAsState()
+    val profile by profileViewModel.profile.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -28,16 +41,22 @@ fun HomeScreen(navController: NavController) {
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        HomeHeader()
+        HomeHeader(name = profile.name)
         WeeklyGoalCard()
         WeeklyStatsCard()
-        RecentRunsSection()
+        RecentRunsSection(runs = runs.take(3))
         Spacer(modifier = Modifier.height(80.dp))
     }
 }
 
 @Composable
-fun HomeHeader() {
+fun HomeHeader(name: String) {
+    val firstName = name.split(" ").firstOrNull() ?: name
+    val initials = name.split(" ").take(2)
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        .joinToString("")
+        .ifEmpty { "?" }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -45,7 +64,7 @@ fun HomeHeader() {
     ) {
         Column {
             Text(
-                text = "Bom dia, João 👋",
+                text = "Olá, $firstName 👋",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF0F172A)
@@ -63,7 +82,7 @@ fun HomeHeader() {
                 .background(Color(0xFF0F172A)),
             contentAlignment = Alignment.Center
         ) {
-            Text("JS", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(initials, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -150,7 +169,7 @@ fun StatItem(value: String, unit: String, label: String) {
 }
 
 @Composable
-fun RecentRunsSection() {
+fun RecentRunsSection(runs: List<Run>) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -160,7 +179,7 @@ fun RecentRunsSection() {
             Text("Corridas recentes", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
             Text("Ver todas", fontSize = 13.sp, color = Color(0xFF3B82F6))
         }
-        MockData.recentRuns.take(3).forEach { run ->
+        runs.forEach { run ->
             com.example.smartpace.ui.components.RunCard(run = run)
         }
     }

@@ -7,7 +7,8 @@ data class Run(
     val pace: String = "",
     val date: String = "",
     val calories: Int = 0,
+    val timestamp: Long = System.currentTimeMillis(),
     val routePoints: List<LatLngPoint> = emptyList()
 )
 
-data class LatLngPoint(val lat: Double, val lng: Double)
+data class LatLngPoint(val lat: Double = 0.0, val lng: Double = 0.0)

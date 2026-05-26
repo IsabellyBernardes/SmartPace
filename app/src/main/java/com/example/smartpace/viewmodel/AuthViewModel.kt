@@ -2,6 +2,7 @@ package com.example.smartpace.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.smartpace.repository.FirestoreRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
@@ -72,6 +73,11 @@ class AuthViewModel : ViewModel() {
                         .setDisplayName(name)
                         .build()
                     user.updateProfile(profileUpdates).await()
+                    try {
+                        val repo = FirestoreRepository()
+                        repo.createUserProfileIfNotExists(name, email)
+                    } catch (e: Exception) {
+                    }
                     _authState.value = AuthState.Success(user)
                 } ?: run {
                     _authState.value = AuthState.Error("Erro ao criar conta")

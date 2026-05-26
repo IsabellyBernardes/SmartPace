@@ -8,8 +8,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,10 +26,19 @@ import com.example.smartpace.model.Achievement
 import com.example.smartpace.navigation.Screen
 import com.example.smartpace.repository.MockData
 import com.example.smartpace.viewmodel.AuthViewModel
+import com.example.smartpace.viewmodel.ProfileViewModel
 
 @Composable
-fun ProfileScreen(navController: NavController, viewModel: AuthViewModel = viewModel()) {
-    val user = MockData.currentUser
+fun ProfileScreen(
+    navController: NavController,
+    viewModel: AuthViewModel = viewModel(),
+    profileViewModel: ProfileViewModel = viewModel()
+) {
+    val user by profileViewModel.profile.collectAsState()
+    val initials = user.name.split(" ").take(2)
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        .joinToString("")
+        .ifEmpty { "?" }
 
     Column(
         modifier = Modifier
@@ -50,7 +62,7 @@ fun ProfileScreen(navController: NavController, viewModel: AuthViewModel = viewM
                         .background(Color(0xFF0F172A)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("JS", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(initials, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Column {
@@ -58,14 +70,20 @@ fun ProfileScreen(navController: NavController, viewModel: AuthViewModel = viewM
                     Text("Corredor desde ${user.memberSince}", fontSize = 13.sp, color = Color(0xFF94A3B8))
                 }
             }
-            OutlinedButton(
-                onClick = {},
-                shape = RoundedCornerShape(20.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            IconButton(
+                onClick = {
+                    viewModel.logout()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             ) {
-                Text("Editar", fontSize = 13.sp, color = Color(0xFF0F172A))
+                Icon(
+                    Icons.Default.Logout,
+                    contentDescription = "Sair",
+                    tint = Color(0xFFEF4444),
+                    modifier = Modifier.size(22.dp)
+                )
             }
         }
 
@@ -123,38 +141,11 @@ fun ProfileScreen(navController: NavController, viewModel: AuthViewModel = viewM
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column {
-                SettingsItem(title = "Metas semanais", subtitle = "50 km / semana")
+                SettingsItem(title = "Metas semanais", subtitle = "${user.weeklyGoalKm.toInt()} km / semana")
                 HorizontalDivider(color = Color(0xFFF1F5F9))
                 SettingsItem(title = "Notificações", subtitle = "Ativadas")
                 HorizontalDivider(color = Color(0xFFF1F5F9))
                 SettingsItem(title = "Dispositivo conectado", subtitle = "Nenhum")
-            }
-        }
-
-        // Botão Sair
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                TextButton(onClick = {
-                    viewModel.logout()
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }) {
-                    Text(
-                        "Sair da conta", fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold, color = Color(0xFFEF4444)
-                    )
-                }
             }
         }
 

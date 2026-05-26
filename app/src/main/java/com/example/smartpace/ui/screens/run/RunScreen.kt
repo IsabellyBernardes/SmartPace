@@ -1,12 +1,16 @@
 package com.example.smartpace.ui.screens.run
 
-import androidx.compose.foundation.Canvas
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -14,32 +18,98 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.smartpace.navigation.Screen
+import com.example.smartpace.viewmodel.LocationViewModel
+import com.example.smartpace.viewmodel.RunViewModel
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.JointType
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.RoundCap
+import com.google.maps.android.compose.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
-fun RunScreen(navController: NavController) {
+fun RunScreen(
+    navController: NavController,
+    runViewModel: RunViewModel = viewModel(),
+    locationViewModel: LocationViewModel = viewModel()
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasLocationPermission = granted
+        if (granted) locationViewModel.startTracking(context)
+    }
+
     var isRunning by remember { mutableStateOf(true) }
     var isPaused by remember { mutableStateOf(false) }
     var elapsedSeconds by remember { mutableStateOf(0) }
     var distanceKm by remember { mutableStateOf(0.0) }
     var showStopDialog by remember { mutableStateOf(false) }
 
+    val currentLocation by locationViewModel.currentLocation.collectAsState()
+    val routePoints by locationViewModel.routePoints.collectAsState()
+
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(
+            currentLocation ?: LatLng(-8.05, -34.9), 17f
+        )
+    }
+
+    // Solicitar permissão / iniciar rastreamento ao entrar na tela
+    LaunchedEffect(Unit) {
+        if (hasLocationPermission) {
+            locationViewModel.startTracking(context)
+        } else {
+            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    // Mover câmera ao receber nova localização
+    LaunchedEffect(currentLocation) {
+        currentLocation?.let { loc ->
+            coroutineScope.launch {
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newLatLngZoom(loc, 17f),
+                    durationMs = 1000
+                )
+            }
+        }
+    }
+
+    // Timer e distância simulada
     LaunchedEffect(isRunning, isPaused) {
         while (isRunning && !isPaused) {
             delay(1000L)
             elapsedSeconds++
             distanceKm += 0.0025
         }
+    }
+
+    // Parar rastreamento ao sair da tela
+    DisposableEffect(Unit) {
+        onDispose { locationViewModel.stopTracking() }
     }
 
     val minutes = elapsedSeconds / 60
@@ -61,6 +131,8 @@ fun RunScreen(navController: NavController) {
                     onClick = {
                         showStopDialog = false
                         isRunning = false
+                        locationViewModel.stopTracking()
+                        runViewModel.saveRun(distanceKm, elapsedSeconds)
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Run.route) { inclusive = true }
                         }
@@ -158,48 +230,46 @@ fun RunScreen(navController: NavController) {
             }
         }
 
-        // Mapa simulado
+        // Google Maps
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(horizontal = 16.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFFE8EDF2))
         ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val streetColor = Color(0xFFFFFFFF)
-                for (i in 0..8) {
-                    val y = size.height * (i / 8f)
-                    drawLine(
-                        color = streetColor,
-                        start = Offset(0f, y),
-                        end = Offset(size.width, y),
-                        strokeWidth = if (i % 2 == 0) 6f else 3f
-                    )
-                }
-                for (i in 0..6) {
-                    val x = size.width * (i / 6f)
-                    drawLine(
-                        color = streetColor,
-                        start = Offset(x, 0f),
-                        end = Offset(x, size.height),
-                        strokeWidth = if (i % 2 == 0) 6f else 3f
-                    )
-                }
-                val path = Path()
-                path.moveTo(size.width * 0.25f, size.height * 0.75f)
-                path.lineTo(size.width * 0.25f, size.height * 0.35f)
-                path.lineTo(size.width * 0.55f, size.height * 0.35f)
-                path.lineTo(size.width * 0.55f, size.height * 0.2f)
-                drawPath(
-                    path,
-                    color = Color(0xFF3B82F6),
-                    style = Stroke(width = 8f, cap = StrokeCap.Round)
+            GoogleMap(
+                modifier = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPositionState,
+                properties = MapProperties(
+                    isMyLocationEnabled = hasLocationPermission,
+                    mapType = MapType.NORMAL
+                ),
+                uiSettings = MapUiSettings(
+                    myLocationButtonEnabled = true,
+                    zoomControlsEnabled = false,
+                    compassEnabled = false
                 )
-                drawCircle(color = Color.White, radius = 16f, center = Offset(size.width * 0.55f, size.height * 0.2f))
-                drawCircle(color = Color(0xFF3B82F6), radius = 11f, center = Offset(size.width * 0.55f, size.height * 0.2f))
-                drawCircle(color = Color(0xFF94A3B8), radius = 8f, center = Offset(size.width * 0.25f, size.height * 0.75f))
+            ) {
+                if (routePoints.size >= 2) {
+                    Polyline(
+                        points = routePoints,
+                        color = Color(0xFF3B82F6),
+                        width = 12f,
+                        startCap = RoundCap(),
+                        endCap = RoundCap(),
+                        jointType = JointType.ROUND
+                    )
+                }
+                currentLocation?.let { loc ->
+                    Circle(
+                        center = loc,
+                        radius = 8.0,
+                        fillColor = Color(0xFF3B82F6),
+                        strokeColor = Color.White,
+                        strokeWidth = 3f
+                    )
+                }
             }
         }
 
@@ -220,8 +290,10 @@ fun RunScreen(navController: NavController) {
             ) {
                 IconButton(onClick = { isPaused = !isPaused }) {
                     Icon(
-                        Icons.Default.Pause, contentDescription = "Pausar",
-                        tint = Color(0xFF64748B), modifier = Modifier.size(24.dp)
+                        if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                        contentDescription = if (isPaused) "Retomar" else "Pausar",
+                        tint = Color(0xFF64748B),
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -235,8 +307,10 @@ fun RunScreen(navController: NavController) {
             ) {
                 IconButton(onClick = { showStopDialog = true }) {
                     Icon(
-                        Icons.Default.Stop, contentDescription = "Parar",
-                        tint = Color.White, modifier = Modifier.size(28.dp)
+                        Icons.Default.Stop,
+                        contentDescription = "Parar",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }

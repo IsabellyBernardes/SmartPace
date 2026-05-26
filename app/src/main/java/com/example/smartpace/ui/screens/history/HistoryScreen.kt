@@ -10,6 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -17,12 +19,37 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.smartpace.model.Run
-import com.example.smartpace.repository.MockData
+import com.example.smartpace.viewmodel.RunViewModel
+import java.util.Calendar
 
 @Composable
-fun HistoryScreen(navController: NavController) {
+fun HistoryScreen(navController: NavController, runViewModel: RunViewModel = viewModel()) {
+    val runs by runViewModel.runs.collectAsState()
+    val usingMockData = runViewModel.usingMockData
+
+    val todayRuns: List<Run>
+    val thisWeekRuns: List<Run>
+    val lastWeekRuns: List<Run>
+    val olderRuns: List<Run>
+
+    if (usingMockData) {
+        todayRuns = runs.take(1)
+        thisWeekRuns = runs.drop(1).take(2)
+        lastWeekRuns = runs.drop(3).take(2)
+        olderRuns = emptyList()
+    } else {
+        todayRuns = runs.filter { isToday(it.timestamp) }
+        thisWeekRuns = runs.filter { isThisWeek(it.timestamp) && !isToday(it.timestamp) }
+        lastWeekRuns = runs.filter { isLastWeek(it.timestamp) }
+        olderRuns = runs.filter { !isThisWeek(it.timestamp) && !isLastWeek(it.timestamp) }
+    }
+
+    val totalKm = runs.sumOf { it.distance }
+    val totalCalories = runs.sumOf { it.calories }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -64,21 +91,45 @@ fun HistoryScreen(navController: NavController) {
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                HistorySummaryItem("6", "CORRIDAS")
+                HistorySummaryItem(runs.size.toString(), "CORRIDAS")
                 VerticalDivider(modifier = Modifier.height(36.dp), color = Color.White.copy(alpha = 0.3f))
-                HistorySummaryItem("37.7 km", "TOTAL")
+                HistorySummaryItem("%.1f km".format(totalKm), "TOTAL")
                 VerticalDivider(modifier = Modifier.height(36.dp), color = Color.White.copy(alpha = 0.3f))
-                HistorySummaryItem("2.267", "CALORIAS")
+                HistorySummaryItem(totalCalories.toString(), "CALORIAS")
             }
         }
 
         // Grupos de corridas
-        RunGroup(label = "HOJE", runs = listOf(MockData.recentRuns[0]))
-        RunGroup(label = "ESTA SEMANA", runs = listOf(MockData.recentRuns[1], MockData.recentRuns[2]))
-        RunGroup(label = "SEMANA PASSADA", runs = listOf(MockData.recentRuns[3], MockData.recentRuns[4]))
+        if (todayRuns.isNotEmpty()) RunGroup(label = "HOJE", runs = todayRuns)
+        if (thisWeekRuns.isNotEmpty()) RunGroup(label = "ESTA SEMANA", runs = thisWeekRuns)
+        if (lastWeekRuns.isNotEmpty()) RunGroup(label = "SEMANA PASSADA", runs = lastWeekRuns)
+        if (olderRuns.isNotEmpty()) RunGroup(label = "ANTERIORES", runs = olderRuns)
 
         Spacer(modifier = Modifier.height(80.dp))
     }
+}
+
+private fun isToday(timestamp: Long): Boolean {
+    val now = Calendar.getInstance()
+    val cal = Calendar.getInstance().also { it.timeInMillis = timestamp }
+    return cal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+            cal.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+}
+
+private fun isThisWeek(timestamp: Long): Boolean {
+    val now = Calendar.getInstance()
+    val cal = Calendar.getInstance().also { it.timeInMillis = timestamp }
+    return cal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+            cal.get(Calendar.WEEK_OF_YEAR) == now.get(Calendar.WEEK_OF_YEAR)
+}
+
+private fun isLastWeek(timestamp: Long): Boolean {
+    val now = Calendar.getInstance()
+    val lastWeekNum = if (now.get(Calendar.WEEK_OF_YEAR) == 1) 52 else now.get(Calendar.WEEK_OF_YEAR) - 1
+    val lastWeekYear = if (now.get(Calendar.WEEK_OF_YEAR) == 1) now.get(Calendar.YEAR) - 1 else now.get(Calendar.YEAR)
+    val cal = Calendar.getInstance().also { it.timeInMillis = timestamp }
+    return cal.get(Calendar.YEAR) == lastWeekYear &&
+            cal.get(Calendar.WEEK_OF_YEAR) == lastWeekNum
 }
 
 @Composable
