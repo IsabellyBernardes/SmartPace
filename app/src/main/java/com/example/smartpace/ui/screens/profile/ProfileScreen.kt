@@ -59,7 +59,11 @@ fun ProfileScreen(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF0F172A)),
+                        .background(
+                            brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                                colors = listOf(Color(0xFF1E40AF), Color(0xFF0F172A))
+                            )
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(initials, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
