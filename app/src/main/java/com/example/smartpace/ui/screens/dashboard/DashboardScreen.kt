@@ -93,19 +93,45 @@ fun DashboardScreen(navController: NavController) {
                 Text("37.7 km", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 Spacer(modifier = Modifier.height(12.dp))
                 Canvas(modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp)) {
-                    val w = size.width
-                    val h = size.height
-                    val points = listOf(0.3f, 0.5f, 0.4f, 0.6f, 0.55f, 0.7f, 0.65f, 0.8f)
-                    val path = Path()
-                    points.forEachIndexed { i, v ->
-                        val x = (i / (points.size - 1).toFloat()) * w
-                        val y = h - (v * h)
-                        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-                    }
-                    drawPath(path, color = Color.White.copy(alpha = 0.8f), style = Stroke(width = 2.5f, cap = StrokeCap.Round))
-                }
+    .fillMaxWidth()
+    .height(60.dp)) {
+    val w = size.width
+    val h = size.height
+    val points = listOf(0.3f, 0.5f, 0.4f, 0.6f, 0.55f, 0.7f, 0.65f, 0.8f)
+    val path = Path()
+
+    points.forEachIndexed { i, v ->
+        val x = (i / (points.size - 1).toFloat()) * w
+        val y = h - (v * h)
+        if (i == 0) {
+            path.moveTo(x, y)
+        } else {
+            // Bezier cúbico: ponto de controle entre o ponto anterior e o atual
+            val prevX = ((i - 1) / (points.size - 1).toFloat()) * w
+            val prevY = h - (points[i - 1] * h)
+            val cpX = (prevX + x) / 2f
+            path.cubicTo(cpX, prevY, cpX, y, x, y)
+        }
+    }
+
+    // Linha da curva
+    drawPath(
+        path,
+        color = Color.White.copy(alpha = 0.9f),
+        style = Stroke(width = 3f, cap = StrokeCap.Round)
+    )
+
+    // Pontos nos vértices
+    points.forEachIndexed { i, v ->
+        val x = (i / (points.size - 1).toFloat()) * w
+        val y = h - (v * h)
+        drawCircle(
+            color = Color.White.copy(alpha = 0.6f),
+            radius = 4f,
+            center = Offset(x, y)
+        )
+    }
+}
             }
         }
 

@@ -53,18 +53,12 @@ fun LoginScreen(navController: NavController, viewModel: AuthViewModel = viewMod
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
+                horizontalAlignment = Alignment.Start
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(28.dp),
-                    horizontalAlignment = Alignment.Start
-                ) {
                     SmartPaceLogo()
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
@@ -160,7 +154,7 @@ fun LoginScreen(navController: NavController, viewModel: AuthViewModel = viewMod
                             SocialButton(text = "f  Facebook", onClick = {})
                         }
                     }
-                }
+                
             }
         }
     }

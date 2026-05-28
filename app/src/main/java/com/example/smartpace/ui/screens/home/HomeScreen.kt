@@ -105,7 +105,7 @@ fun WeeklyGoalCard() {
                     text = "72%",
                     color = Color.White,
                     fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.ExtraBold
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -123,8 +123,14 @@ fun WeeklyGoalCard() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("${MockData.weeklyKmDone.toInt()} km percorridos", color = Color(0xFF94A3B8), fontSize = 12.sp)
-                Text("${MockData.weeklyKmGoal.toInt()} km meta", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+    Text("${MockData.weeklyKmDone.toInt()}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+    Text(" km percorridos", color = Color(0xFF94A3B8), fontSize = 12.sp)
+}
+Row(verticalAlignment = Alignment.CenterVertically) {
+    Text("${MockData.weeklyKmGoal.toInt()}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+    Text(" km meta", color = Color(0xFF94A3B8), fontSize = 12.sp)
+}
             }
         }
     }
@@ -159,7 +165,7 @@ fun WeeklyStatsCard() {
 fun StatItem(value: String, unit: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+            Text(value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF0F172A))
             if (unit == "/km") Text(unit, fontSize = 12.sp, color = Color(0xFF94A3B8), modifier = Modifier.padding(bottom = 3.dp))
         }
         if (unit != "/km") Text(unit, fontSize = 12.sp, color = Color(0xFF94A3B8))
@@ -179,8 +185,39 @@ fun RecentRunsSection(runs: List<Run>) {
             Text("Corridas recentes", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
             Text("Ver todas", fontSize = 13.sp, color = Color(0xFF3B82F6))
         }
-        runs.forEach { run ->
-            com.example.smartpace.ui.components.RunCard(run = run)
+        if (runs.isEmpty()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text("🏃", fontSize = 40.sp)
+            Text(
+                "Nenhuma corrida ainda",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF0F172A)
+            )
+            Text(
+                "Toque em + para registrar sua primeira corrida",
+                fontSize = 13.sp,
+                color = Color(0xFF94A3B8),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
+    }
+} else {
+    runs.forEach { run ->
+        com.example.smartpace.ui.components.RunCard(run = run)
+    }
+}
     }
 }

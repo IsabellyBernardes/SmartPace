@@ -100,10 +100,41 @@ fun HistoryScreen(navController: NavController, runViewModel: RunViewModel = vie
         }
 
         // Grupos de corridas
-        if (todayRuns.isNotEmpty()) RunGroup(label = "HOJE", runs = todayRuns)
-        if (thisWeekRuns.isNotEmpty()) RunGroup(label = "ESTA SEMANA", runs = thisWeekRuns)
-        if (lastWeekRuns.isNotEmpty()) RunGroup(label = "SEMANA PASSADA", runs = lastWeekRuns)
-        if (olderRuns.isNotEmpty()) RunGroup(label = "ANTERIORES", runs = olderRuns)
+if (runs.isEmpty()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text("📋", fontSize = 40.sp)
+            Text(
+                "Sem corridas registradas",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF0F172A)
+            )
+            Text(
+                "Suas corridas aparecerão aqui após a primeira atividade",
+                fontSize = 13.sp,
+                color = Color(0xFF94A3B8),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
+    }
+} else {
+    if (todayRuns.isNotEmpty()) RunGroup(label = "HOJE", runs = todayRuns)
+    if (thisWeekRuns.isNotEmpty()) RunGroup(label = "ESTA SEMANA", runs = thisWeekRuns)
+    if (lastWeekRuns.isNotEmpty()) RunGroup(label = "SEMANA PASSADA", runs = lastWeekRuns)
+    if (olderRuns.isNotEmpty()) RunGroup(label = "ANTERIORES", runs = olderRuns)
+}
 
         Spacer(modifier = Modifier.height(80.dp))
     }
