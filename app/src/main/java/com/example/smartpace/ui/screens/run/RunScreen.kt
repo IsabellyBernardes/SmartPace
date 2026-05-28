@@ -151,7 +151,7 @@ fun RunScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
+            .background(Color(0xFF0F172A))
     ) {
         // Status Bar
         Box(
@@ -181,19 +181,20 @@ fun RunScreen(
                         letterSpacing = 1.sp
                     )
                 }
-                OutlinedButton(
-                    onClick = {},
-                    shape = RoundedCornerShape(20.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
-                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFFF97316))
+                        .clickable { }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Warning, contentDescription = null,
-                        modifier = Modifier.size(14.dp), tint = Color(0xFF94A3B8)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Sinalizar problema", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Warning, contentDescription = null,
+                            modifier = Modifier.size(14.dp), tint = Color(0xFF7C2D12))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Sinalizar problema", fontSize = 12.sp,
+                            color = Color(0xFF7C2D12), fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
@@ -235,8 +236,6 @@ fun RunScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(16.dp))
         ) {
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
@@ -275,48 +274,51 @@ fun RunScreen(
 
         // Controles
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFF1F5F9)),
-                contentAlignment = Alignment.Center
-            ) {
-                IconButton(onClick = { isPaused = !isPaused }) {
-                    Icon(
-                        if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                        contentDescription = if (isPaused) "Retomar" else "Pausar",
-                        tint = Color(0xFF64748B),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(24.dp))
-            Box(
-                modifier = Modifier
-                    .size(68.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF0F172A)),
-                contentAlignment = Alignment.Center
-            ) {
-                IconButton(onClick = { showStopDialog = true }) {
-                    Icon(
-                        Icons.Default.Stop,
-                        contentDescription = "Parar",
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(24.dp))
-            Spacer(modifier = Modifier.size(56.dp))
+    modifier = Modifier
+        .fillMaxWidth()
+        .background(Color(0xFF0F172A))
+        .padding(vertical = 20.dp),
+    horizontalArrangement = Arrangement.Center,
+    verticalAlignment = Alignment.CenterVertically
+) {
+    // Botão Pausar
+    Box(
+        modifier = Modifier
+            .size(56.dp)
+            .clip(CircleShape)
+            .background(Color(0xFF1E293B)),
+        contentAlignment = Alignment.Center
+    ) {
+        IconButton(onClick = { isPaused = !isPaused }) {
+            Icon(
+                if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                contentDescription = if (isPaused) "Retomar" else "Pausar",
+                tint = Color(0xFF94A3B8),
+                modifier = Modifier.size(24.dp)
+            )
         }
+    }
+    Spacer(modifier = Modifier.width(24.dp))
+    // Botão Parar — branco com quadrado escuro dentro
+    Box(
+        modifier = Modifier
+            .size(68.dp)
+            .clip(CircleShape)
+            .background(Color.White),
+        contentAlignment = Alignment.Center
+    ) {
+        IconButton(onClick = { showStopDialog = true }) {
+            Icon(
+                Icons.Default.Stop,
+                contentDescription = "Parar",
+                tint = Color(0xFF0F172A),
+                modifier = Modifier.size(28.dp)
+            )
+        }
+    }
+    Spacer(modifier = Modifier.width(24.dp))
+    Spacer(modifier = Modifier.size(56.dp))
+}
     }
 }
 

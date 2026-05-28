@@ -92,7 +92,7 @@ fun BottomBar(navController: NavController) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(68.dp)
                 .padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
@@ -110,14 +110,19 @@ fun BottomBar(navController: NavController) {
                 onClick = { navController.navigate(Screen.History.route) { launchSingleTop = true } }
             )
             Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF0F172A))
-                    .clickable { navController.navigate(Screen.Run.route) },
+                modifier = Modifier.offset(y = (-10).dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("+", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Light)
+                Box(
+                    modifier = Modifier
+                        .size(58.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF0F172A))
+                        .clickable { navController.navigate(Screen.Run.route) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("+", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Light)
+                }
             }
             BottomBarItem(
                 icon = Icons.Default.BarChart,
@@ -132,7 +137,7 @@ fun BottomBar(navController: NavController) {
                 onClick = { navController.navigate(Screen.Profile.route) { launchSingleTop = true } }
             )
         }
-        HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.align(Alignment.TopCenter))
+        HorizontalDivider(color = Color(0xFFE2E8F0), modifier = Modifier.align(Alignment.TopCenter))
     }
 }
 
