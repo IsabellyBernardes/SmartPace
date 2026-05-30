@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smartpace.model.Run
 import com.example.smartpace.repository.FirestoreRepository
-import com.example.smartpace.repository.MockData
+import com.example.smartpace.utils.paceToSeconds
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -28,9 +28,6 @@ class RunViewModel : ViewModel() {
     private val _runs = MutableStateFlow<List<Run>>(emptyList())
     val runs: StateFlow<List<Run>> = _runs
 
-    var usingMockData: Boolean = false
-        private set
-
     init {
         loadRuns()
     }
@@ -40,19 +37,11 @@ class RunViewModel : ViewModel() {
             _runsState.value = RunsState.Loading
             try {
                 val firestoreRuns = repository.getRuns()
-                if (firestoreRuns.isEmpty()) {
-                    usingMockData = true
-                    _runs.value = MockData.recentRuns
-                    _runsState.value = RunsState.Success(MockData.recentRuns)
-                } else {
-                    usingMockData = false
-                    _runs.value = firestoreRuns
-                    _runsState.value = RunsState.Success(firestoreRuns)
-                }
+                _runs.value = firestoreRuns
+                _runsState.value = RunsState.Success(firestoreRuns)
             } catch (e: Exception) {
-                usingMockData = true
-                _runs.value = MockData.recentRuns
-                _runsState.value = RunsState.Success(MockData.recentRuns)
+                _runs.value = emptyList()
+                _runsState.value = RunsState.Success(emptyList())
             }
         }
     }
@@ -83,9 +72,7 @@ class RunViewModel : ViewModel() {
                 )
                 repository.saveRun(run)
                 loadRuns()
-            } catch (e: Exception) {
-                // corrida não salva — continua silenciosamente
-            }
+            } catch (e: Exception) { }
         }
     }
 
@@ -93,13 +80,4 @@ class RunViewModel : ViewModel() {
     val totalRuns get() = _runs.value.size
     val bestPace get() = _runs.value.minByOrNull { paceToSeconds(it.pace) }?.pace ?: "--:--"
     val weeklyRuns get() = _runs.value.take(7)
-
-    private fun paceToSeconds(pace: String): Int {
-        return try {
-            val parts = pace.split(":")
-            parts[0].toInt() * 60 + parts[1].toInt()
-        } catch (e: Exception) {
-            Int.MAX_VALUE
-        }
-    }
 }

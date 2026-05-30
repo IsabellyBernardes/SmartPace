@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +16,8 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +30,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.smartpace.navigation.Screen
+import com.example.smartpace.model.AlertType
+import com.example.smartpace.viewmodel.AlertViewModel
 import com.example.smartpace.viewmodel.LocationViewModel
 import com.example.smartpace.viewmodel.RunViewModel
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -42,7 +47,8 @@ import kotlinx.coroutines.launch
 fun RunScreen(
     navController: NavController,
     runViewModel: RunViewModel = viewModel(),
-    locationViewModel: LocationViewModel = viewModel()
+    locationViewModel: LocationViewModel = viewModel(),
+    alertViewModel: AlertViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -64,12 +70,16 @@ fun RunScreen(
 
     var isRunning by remember { mutableStateOf(true) }
     var isPaused by remember { mutableStateOf(false) }
-    var elapsedSeconds by remember { mutableStateOf(0) }
-    var distanceKm by remember { mutableStateOf(0.0) }
+    var elapsedSeconds by remember { mutableIntStateOf(0) }
+    var distanceKm by remember { mutableDoubleStateOf(0.0) }
     var showStopDialog by remember { mutableStateOf(false) }
 
     val currentLocation by locationViewModel.currentLocation.collectAsState()
     val routePoints by locationViewModel.routePoints.collectAsState()
+
+    val alerts by alertViewModel.alerts.collectAsState()
+    val alertSaved by alertViewModel.saved.collectAsState()
+    var showAlertDialog by remember { mutableStateOf(false) }
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(
@@ -77,7 +87,6 @@ fun RunScreen(
         )
     }
 
-    // Solicitar permissão / iniciar rastreamento ao entrar na tela
     LaunchedEffect(Unit) {
         if (hasLocationPermission) {
             locationViewModel.startTracking(context)
@@ -86,7 +95,6 @@ fun RunScreen(
         }
     }
 
-    // Mover câmera ao receber nova localização
     LaunchedEffect(currentLocation) {
         currentLocation?.let { loc ->
             coroutineScope.launch {
@@ -95,6 +103,13 @@ fun RunScreen(
                     durationMs = 1000
                 )
             }
+        }
+    }
+
+    LaunchedEffect(alertSaved) {
+        if (alertSaved) {
+            delay(2000L)
+            alertViewModel.resetSaved()
         }
     }
 
@@ -148,12 +163,52 @@ fun RunScreen(
         )
     }
 
+    if (showAlertDialog) {
+        AlertDialog(
+            onDismissRequest = { showAlertDialog = false },
+            title = { Text("Sinalizar problema", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Qual problema você encontrou?", fontSize = 14.sp, color = Color(0xFF64748B))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    AlertType.entries.forEach { type ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    alertViewModel.saveAlert(type, currentLocation)
+                                    showAlertDialog = false
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text(type.emoji, fontSize = 20.sp)
+                                Text(type.label, fontSize = 14.sp, color = Color(0xFF0F172A))
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showAlertDialog = false }) {
+                    Text("Cancelar", color = Color(0xFF94A3B8))
+                }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0F172A))
     ) {
-        // Status Bar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -185,7 +240,7 @@ fun RunScreen(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
                         .background(Color(0xFFF97316))
-                        .clickable { }
+                        .clickable { showAlertDialog = true }
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -199,39 +254,28 @@ fun RunScreen(
             }
         }
 
-        // Métricas
-        Card(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
+            RunMetricItem(value = timeFormatted, label = "TEMPO", light = false)
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+                    .background(Color(0xFF3B82F6), RoundedCornerShape(14.dp))
+                    .padding(horizontal = 24.dp, vertical = 14.dp),
+                contentAlignment = Alignment.Center
             ) {
-                RunMetricItem(value = timeFormatted, label = "TEMPO")
-                Box(
-                    modifier = Modifier
-                        .background(Color(0xFF3B82F6), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(distFormatted, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        Text("KM", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f), letterSpacing = 1.sp)
-                    }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(distFormatted, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                    Text("KM", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f), letterSpacing = 1.sp)
                 }
-                RunMetricItem(value = paceFormatted, label = "MIN/KM")
             }
+            RunMetricItem(value = paceFormatted, label = "MIN/KM", light = false)
         }
 
-        // Google Maps
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -260,6 +304,13 @@ fun RunScreen(
                         jointType = JointType.ROUND
                     )
                 }
+                alerts.forEach { alert ->
+                    Marker(
+                        state = MarkerState(position = LatLng(alert.lat, alert.lng)),
+                        title = alert.type.label,
+                        snippet = "${alert.type.emoji} ${alert.sightings} avistamentos"
+                    )
+                }
                 currentLocation?.let { loc ->
                     Circle(
                         center = loc,
@@ -270,9 +321,58 @@ fun RunScreen(
                     )
                 }
             }
+            if (alertSaved) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp)
+                ) {
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF22C55E))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("✓", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text("Alerta registrado!", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
         }
 
-        // Controles
+        if (alertSaved) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF0F172A))
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF22C55E))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("✓", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Alerta registrado com sucesso!", color = Color.White, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
+
+        HorizontalDivider(
+            color = Color(0xFF1E293B),
+            thickness = 1.dp
+        )
+
         Row(
     modifier = Modifier
         .fillMaxWidth()
@@ -281,7 +381,6 @@ fun RunScreen(
     horizontalArrangement = Arrangement.Center,
     verticalAlignment = Alignment.CenterVertically
 ) {
-    // Botão Pausar
     Box(
         modifier = Modifier
             .size(56.dp)
@@ -299,7 +398,6 @@ fun RunScreen(
         }
     }
     Spacer(modifier = Modifier.width(24.dp))
-    // Botão Parar — branco com quadrado escuro dentro
     Box(
         modifier = Modifier
             .size(68.dp)
@@ -323,9 +421,19 @@ fun RunScreen(
 }
 
 @Composable
-fun RunMetricItem(value: String, label: String) {
+fun RunMetricItem(value: String, label: String, light: Boolean = true) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-        Text(label, fontSize = 11.sp, color = Color(0xFF94A3B8), letterSpacing = 1.sp)
+        Text(
+            value,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = if (light) Color(0xFF0F172A) else Color.White
+        )
+        Text(
+            label,
+            fontSize = 11.sp,
+            color = if (light) Color(0xFF94A3B8) else Color(0xFF64748B),
+            letterSpacing = 1.sp
+        )
     }
 }

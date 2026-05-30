@@ -20,7 +20,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.smartpace.model.Run
-import com.example.smartpace.repository.MockData
+import com.example.smartpace.utils.formatTotalTime
+import com.example.smartpace.utils.isThisWeek
+import com.example.smartpace.utils.paceToSeconds
+import com.example.smartpace.utils.parseDurationToSeconds
 import com.example.smartpace.viewmodel.ProfileViewModel
 import com.example.smartpace.viewmodel.RunViewModel
 
@@ -33,6 +36,15 @@ fun HomeScreen(
     val runs by runViewModel.runs.collectAsState()
     val profile by profileViewModel.profile.collectAsState()
 
+    val weeklyRuns = runs.filter { isThisWeek(it.timestamp) }
+    val weeklyKmDone = weeklyRuns.sumOf { it.distance }
+    val weeklyKmGoal = profile.weeklyGoalKm
+    val weeklyProgress = if (weeklyKmGoal > 0) (weeklyKmDone / weeklyKmGoal).toFloat().coerceAtMost(1f) else 0f
+    val weeklyRunCount = weeklyRuns.size
+    val weeklyTimeSec = weeklyRuns.sumOf { parseDurationToSeconds(it.duration) }
+    val weeklyTimeStr = if (weeklyTimeSec > 0) formatTotalTime(weeklyTimeSec) else "--"
+    val bestPaceStr = runs.minByOrNull { paceToSeconds(it.pace) }?.pace ?: "--:--"
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -42,8 +54,8 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         HomeHeader(name = profile.name)
-        WeeklyGoalCard()
-        WeeklyStatsCard()
+        WeeklyGoalCard(weeklyProgress, weeklyKmDone, weeklyKmGoal)
+        WeeklyStatsCard(weeklyRunCount, weeklyTimeStr, bestPaceStr)
         RecentRunsSection(runs = runs.take(3))
         Spacer(modifier = Modifier.height(80.dp))
     }
@@ -51,7 +63,7 @@ fun HomeScreen(
 
 @Composable
 fun HomeHeader(name: String) {
-    val firstName = name.split(" ").firstOrNull() ?: name
+    val firstName = name.split(" ").firstOrNull()?.takeIf { it.isNotBlank() } ?: "Corredor"
     val initials = name.split(" ").take(2)
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }
         .joinToString("")
@@ -92,7 +104,8 @@ fun HomeHeader(name: String) {
 }
 
 @Composable
-fun WeeklyGoalCard() {
+fun WeeklyGoalCard(weeklyProgress: Float, weeklyKmDone: Double, weeklyKmGoal: Double) {
+    val percent = (weeklyProgress * 100).toInt()
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -106,7 +119,7 @@ fun WeeklyGoalCard() {
             ) {
                 Text("Meta semanal", color = Color(0xFFCBD5E1), fontSize = 13.sp)
                 Text(
-                    text = "72%",
+                    text = "$percent%",
                     color = Color.White,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.ExtraBold
@@ -114,7 +127,7 @@ fun WeeklyGoalCard() {
             }
             Spacer(modifier = Modifier.height(12.dp))
             LinearProgressIndicator(
-                progress = { MockData.weeklyProgress.toFloat() },
+                progress = { weeklyProgress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)
@@ -128,20 +141,20 @@ fun WeeklyGoalCard() {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-    Text("${MockData.weeklyKmDone.toInt()}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
-    Text(" km percorridos", color = Color(0xFF94A3B8), fontSize = 12.sp)
-}
-Row(verticalAlignment = Alignment.CenterVertically) {
-    Text("${MockData.weeklyKmGoal.toInt()}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
-    Text(" km meta", color = Color(0xFF94A3B8), fontSize = 12.sp)
-}
+                    Text("%.1f".format(weeklyKmDone), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(" km percorridos", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("${weeklyKmGoal.toInt()}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(" km meta", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                }
             }
         }
     }
 }
 
 @Composable
-fun WeeklyStatsCard() {
+fun WeeklyStatsCard(weeklyRuns: Int, weeklyTime: String, bestPace: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -156,11 +169,11 @@ fun WeeklyStatsCard() {
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            StatItem(value = MockData.weeklyRuns.toString(), unit = "corridas", label = "Esta semana")
+            StatItem(value = weeklyRuns.toString(), unit = "corridas", label = "Esta semana")
             VerticalDivider(modifier = Modifier.height(48.dp), color = Color(0xFFE2E8F0))
-            StatItem(value = MockData.weeklyTime, unit = "semana", label = "Tempo total")
+            StatItem(value = weeklyTime, unit = "semana", label = "Tempo total")
             VerticalDivider(modifier = Modifier.height(48.dp), color = Color(0xFFE2E8F0))
-            StatItem(value = MockData.bestPace, unit = "/km", label = "Melhor pace")
+            StatItem(value = bestPace, unit = "/km", label = "Melhor pace")
         }
     }
 }
@@ -190,38 +203,38 @@ fun RecentRunsSection(runs: List<Run>) {
             Text("Ver todas", fontSize = 13.sp, color = Color(0xFF3B82F6))
         }
         if (runs.isEmpty()) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text("🏃", fontSize = 40.sp)
-            Text(
-                "Nenhuma corrida ainda",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF0F172A)
-            )
-            Text(
-                "Toque em + para registrar sua primeira corrida",
-                fontSize = 13.sp,
-                color = Color(0xFF94A3B8),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("🏃", fontSize = 40.sp)
+                    Text(
+                        "Nenhuma corrida ainda",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF0F172A)
+                    )
+                    Text(
+                        "Toque em + para registrar sua primeira corrida",
+                        fontSize = 13.sp,
+                        color = Color(0xFF94A3B8),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            runs.forEach { run ->
+                com.example.smartpace.ui.components.RunCard(run = run)
+            }
         }
-    }
-} else {
-    runs.forEach { run ->
-        com.example.smartpace.ui.components.RunCard(run = run)
-    }
-}
     }
 }

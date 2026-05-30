@@ -24,21 +24,49 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.smartpace.model.Achievement
 import com.example.smartpace.navigation.Screen
-import com.example.smartpace.repository.MockData
+import com.example.smartpace.utils.hasSevenConsecutiveDays
+import com.example.smartpace.utils.paceToSeconds
 import com.example.smartpace.viewmodel.AuthViewModel
 import com.example.smartpace.viewmodel.ProfileViewModel
+import com.example.smartpace.viewmodel.RunViewModel
 
 @Composable
 fun ProfileScreen(
     navController: NavController,
     viewModel: AuthViewModel = viewModel(),
-    profileViewModel: ProfileViewModel = viewModel()
+    profileViewModel: ProfileViewModel = viewModel(),
+    runViewModel: RunViewModel = viewModel()
 ) {
     val user by profileViewModel.profile.collectAsState()
+    val runs by runViewModel.runs.collectAsState()
     val initials = user.name.split(" ").take(2)
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }
         .joinToString("")
         .ifEmpty { "?" }
+
+    val totalKm = runs.sumOf { it.distance }
+    val achievements = listOf(
+        Achievement(
+            id = "1", title = "Primeira Corrida",
+            description = "Completou sua primeira corrida registrada no app",
+            emoji = "👟", unlocked = runs.isNotEmpty()
+        ),
+        Achievement(
+            id = "2", title = "5km em 25min",
+            description = "Manteve pace abaixo de 5:00/km por 5km seguidos",
+            emoji = "⚡", unlocked = runs.any { it.distance >= 5.0 && paceToSeconds(it.pace) <= 300 }
+        ),
+        Achievement(
+            id = "3", title = "7 Dias Seguidos",
+            description = "Registrou ao menos uma corrida por 7 dias consecutivos",
+            emoji = "🔥", unlocked = hasSevenConsecutiveDays(runs)
+        ),
+        Achievement(
+            id = "4", title = "100km Totais",
+            description = "Acumulou 100km em corridas registradas no SmartPace",
+            emoji = "🏆", unlocked = totalKm >= 100.0
+        )
+    )
 
     Column(
         modifier = Modifier
@@ -48,7 +76,6 @@ fun ProfileScreen(
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header do Perfil
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -91,7 +118,6 @@ fun ProfileScreen(
             }
         }
 
-        // Card Estatísticas Gerais
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -108,18 +134,17 @@ fun ProfileScreen(
                 VerticalDivider(modifier = Modifier.height(36.dp), color = Color.White.copy(alpha = 0.3f))
                 ProfileStatItem(value = "${user.totalKm.toInt()} km", label = "TOTAL")
                 VerticalDivider(modifier = Modifier.height(36.dp), color = Color.White.copy(alpha = 0.3f))
-                ProfileStatItem(value = user.avgPace, label = "PACE MÉDIO")
+                ProfileStatItem(value = user.avgPace.ifEmpty { "--:--" }, label = "PACE MÉDIO")
             }
         }
 
-        // Seção Conquistas
         Text(
             "CONQUISTAS", fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
             letterSpacing = 1.sp, color = Color(0xFF94A3B8)
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            MockData.achievements.chunked(2).forEach { row ->
+            achievements.chunked(2).forEach { row ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -132,7 +157,6 @@ fun ProfileScreen(
             }
         }
 
-        // Seção Configurações
         Text(
             "CONFIGURAÇÕES", fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
             letterSpacing = 1.sp, color = Color(0xFF94A3B8)

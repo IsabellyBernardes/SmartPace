@@ -20,13 +20,74 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.smartpace.repository.MockData
+import com.example.smartpace.viewmodel.RunViewModel
+import java.util.Calendar
 
 @Composable
-fun DashboardScreen(navController: NavController) {
-    var selectedPeriod by remember { mutableStateOf("semana") }
-    val periods = listOf("semana", "mês", "ano")
+fun DashboardScreen(navController: NavController, runViewModel: RunViewModel = viewModel()) {
+    var selectedPeriod by remember { mutableStateOf("dia") }
+    val periods = listOf("dia", "mês")
+
+    val runs by runViewModel.runs.collectAsState()
+
+    val filteredRuns = remember(runs, selectedPeriod) {
+        val now = Calendar.getInstance()
+        runs.filter { run ->
+            val cal = Calendar.getInstance().also { it.timeInMillis = run.timestamp }
+            when (selectedPeriod) {
+                "dia" -> cal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                        cal.get(Calendar.WEEK_OF_YEAR) == now.get(Calendar.WEEK_OF_YEAR)
+                "mês" -> cal.get(Calendar.YEAR) == now.get(Calendar.YEAR)
+                else -> true
+            }
+        }
+    }
+
+    val totalDistance = filteredRuns.sumOf { it.distance }
+    val bestPace = filteredRuns.minByOrNull { run ->
+        try {
+            val parts = run.pace.split(":")
+            parts[0].toInt() * 60 + parts[1].toInt()
+        } catch (e: Exception) { Int.MAX_VALUE }
+    }?.pace ?: "--:--"
+    val totalRuns = filteredRuns.size
+    val totalCalories = filteredRuns.sumOf { it.calories }
+    val longestRun = filteredRuns.maxOfOrNull { it.distance }
+
+    val dayNames = listOf("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
+    val todayIndex = (Calendar.getInstance().get(Calendar.DAY_OF_WEEK) + 5) % 7
+    val weeklyKmByDay = when (selectedPeriod) {
+        "dia" -> dayNames.mapIndexed { index, day ->
+            val km = filteredRuns.filter { run ->
+                val cal = Calendar.getInstance().also { it.timeInMillis = run.timestamp }
+                (cal.get(Calendar.DAY_OF_WEEK) + 5) % 7 == index
+            }.sumOf { it.distance }
+            Pair(day, km)
+        }
+        "mês" -> {
+            val months = listOf("Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+                "Jul", "Ago", "Set", "Out", "Nov", "Dez")
+            val now = Calendar.getInstance()
+            months.mapIndexed { index, month ->
+                val km = runs.filter { run ->
+                    val cal = Calendar.getInstance().also { it.timeInMillis = run.timestamp }
+                    cal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                    cal.get(Calendar.MONTH) == index
+                }.sumOf { it.distance }
+                Pair(month, km)
+            }
+        }
+        else -> dayNames.map { Pair(it, 0.0) }
+    }
+
+    val metrics = listOf(
+        Triple("⚡", if (bestPace != "--:--") "$bestPace/km" else "--", "Melhor pace"),
+        Triple("📍", longestRun?.let { "%.1f km".format(it) } ?: "--", "Mais longa"),
+        Triple("🏃", totalRuns.toString(), "Corridas totais"),
+        Triple("🔥", if (totalCalories >= 1000) "%.1fk".format(totalCalories / 1000.0) else totalCalories.toString(), "Calorias")
+    )
 
     Column(
         modifier = Modifier
@@ -36,7 +97,6 @@ fun DashboardScreen(navController: NavController) {
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -68,7 +128,6 @@ fun DashboardScreen(navController: NavController) {
             }
         }
 
-        // Card Distância Total
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -90,52 +149,69 @@ fun DashboardScreen(navController: NavController) {
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("37.7 km", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("%.1f km".format(totalDistance), fontSize = 36.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
                 Spacer(modifier = Modifier.height(12.dp))
-                Canvas(modifier = Modifier
-    .fillMaxWidth()
-    .height(60.dp)) {
-    val w = size.width
-    val h = size.height
-    val points = listOf(0.3f, 0.5f, 0.4f, 0.6f, 0.55f, 0.7f, 0.65f, 0.8f)
-    val path = Path()
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(70.dp)
+                ) {
+                    val w = size.width
+                    val h = size.height
+                    val points = listOf(0.3f, 0.5f, 0.4f, 0.6f, 0.55f, 0.7f, 0.65f, 0.8f)
 
-    points.forEachIndexed { i, v ->
-        val x = (i / (points.size - 1).toFloat()) * w
-        val y = h - (v * h)
-        if (i == 0) {
-            path.moveTo(x, y)
-        } else {
-            // Bezier cúbico: ponto de controle entre o ponto anterior e o atual
-            val prevX = ((i - 1) / (points.size - 1).toFloat()) * w
-            val prevY = h - (points[i - 1] * h)
-            val cpX = (prevX + x) / 2f
-            path.cubicTo(cpX, prevY, cpX, y, x, y)
-        }
-    }
+                    val linePath = Path()
+                    points.forEachIndexed { i, v ->
+                        val x = (i / (points.size - 1).toFloat()) * w
+                        val y = h - (v * h)
+                        if (i == 0) {
+                            linePath.moveTo(x, y)
+                        } else {
+                            val prevX = ((i - 1) / (points.size - 1).toFloat()) * w
+                            val prevY = h - (points[i - 1] * h)
+                            val cpX = (prevX + x) / 2f
+                            linePath.cubicTo(cpX, prevY, cpX, y, x, y)
+                        }
+                    }
 
-    // Linha da curva
-    drawPath(
-        path,
-        color = Color.White.copy(alpha = 0.9f),
-        style = Stroke(width = 3f, cap = StrokeCap.Round)
-    )
+                    val fillPath = Path()
+                    fillPath.addPath(linePath)
+                    fillPath.lineTo(w, h)
+                    fillPath.lineTo(0f, h)
+                    fillPath.close()
 
-    // Pontos nos vértices
-    points.forEachIndexed { i, v ->
-        val x = (i / (points.size - 1).toFloat()) * w
-        val y = h - (v * h)
-        drawCircle(
-            color = Color.White.copy(alpha = 0.6f),
-            radius = 4f,
-            center = Offset(x, y)
-        )
-    }
-}
+                    drawPath(
+                        fillPath,
+                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.15f),
+                                Color.White.copy(alpha = 0.0f)
+                            ),
+                            startY = 0f,
+                            endY = size.height
+                        )
+                    )
+
+                    drawPath(
+                        linePath,
+                        color = Color.White.copy(alpha = 0.9f),
+                        style = Stroke(width = 3f, cap = StrokeCap.Round)
+                    )
+
+                    points.forEachIndexed { i, v ->
+                        val x = (i / (points.size - 1).toFloat()) * w
+                        val y = h - (v * h)
+                        drawCircle(color = Color.White.copy(alpha = 0.5f), radius = 3f, center = Offset(x, y))
+                    }
+
+                    val lastX = w
+                    val lastY = h - (points.last() * h)
+                    drawCircle(color = Color.White, radius = 5f, center = Offset(lastX, lastY))
+                    drawCircle(color = Color(0xFF3B82F6), radius = 3f, center = Offset(lastX, lastY))
+                }
             }
         }
 
-        // Card Km por Dia
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -143,31 +219,40 @@ fun DashboardScreen(navController: NavController) {
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Km por dia esta semana", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                Text(
+                    when (selectedPeriod) {
+                        "dia" -> "Km por dia esta semana"
+                        "mês" -> "Km por mês este ano"
+                        else -> "Km por período"
+                    },
+                    fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A)
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    MockData.weeklyKmByDay.forEachIndexed { index, (day, km) ->
-                        val maxKm = MockData.weeklyKmByDay.maxOf { it.second }
-                        val barHeight = if (maxKm > 0) ((km / maxKm) * 80).dp else 4.dp
-                        val isToday = index == 3
+                    weeklyKmByDay.forEachIndexed { index, (day, km) ->
+                        val maxKm = weeklyKmByDay.maxOf { it.second }.takeIf { it > 0 } ?: 1.0
+                        val barHeight = ((km / maxKm) * 80).dp
+                        val isToday = selectedPeriod == "dia" && index == todayIndex
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Bottom
                         ) {
                             if (km > 0) {
-                                Text("$km", fontSize = 9.sp, color = Color(0xFF64748B))
+                                Text("%.1f".format(km), fontSize = 9.sp, color = Color(0xFF64748B))
                                 Spacer(modifier = Modifier.height(4.dp))
                             }
                             Box(
                                 modifier = Modifier
                                     .width(28.dp)
-                                    .height(if (km > 0) barHeight else 4.dp)
+                                    .height(if (km > 0) barHeight.coerceAtLeast(8.dp) else 4.dp)
                                     .background(
-                                        if (isToday) Color(0xFF3B82F6) else Color(0xFFBFDBFE),
+                                        if (isToday) Color(0xFF3B82F6)
+                                        else if (km > 0) Color(0xFFBFDBFE)
+                                        else Color(0xFFE2E8F0),
                                         RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
                                     )
                             )
@@ -184,13 +269,6 @@ fun DashboardScreen(navController: NavController) {
             }
         }
 
-        // Grid de Métricas 2x2
-        val metrics = listOf(
-            Triple("⚡", "5:14/km", "Melhor pace"),
-            Triple("📍", "10.0 km", "Mais longa"),
-            Triple("🏃", "24", "Corridas totais"),
-            Triple("🔥", "12.4k", "Calorias")
-        )
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             metrics.chunked(2).forEach { row ->
                 Row(
@@ -207,7 +285,7 @@ fun DashboardScreen(navController: NavController) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(emoji, fontSize = 22.sp)
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                                Text(value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF0F172A))
                                 Text(label, fontSize = 12.sp, color = Color(0xFF94A3B8))
                             }
                         }
