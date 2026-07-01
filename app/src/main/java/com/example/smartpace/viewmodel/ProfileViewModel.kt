@@ -54,4 +54,14 @@ class ProfileViewModel : ViewModel() {
             } catch (e: Exception) { }
         }
     }
+
+    fun updateWeight(weightKg: Double) {
+        // Atualização otimista para refletir na UI imediatamente
+        _profile.value = _profile.value.copy(weightKg = weightKg)
+        viewModelScope.launch {
+            try {
+                repository.updateWeight(weightKg)
+            } catch (e: Exception) { }
+        }
+    }
 }

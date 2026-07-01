@@ -145,7 +145,7 @@ fun DashboardScreen(navController: NavController, runViewModel: RunViewModel = v
                             .background(Color(0xFF22C55E).copy(alpha = 0.2f), RoundedCornerShape(20.dp))
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
-                        Text("↑ +12%", fontSize = 12.sp, color = Color(0xFF22C55E), fontWeight = FontWeight.SemiBold)
+                        Text("${totalRuns} corridas", fontSize = 12.sp, color = Color(0xFF22C55E), fontWeight = FontWeight.SemiBold)
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -158,7 +158,9 @@ fun DashboardScreen(navController: NavController, runViewModel: RunViewModel = v
                 ) {
                     val w = size.width
                     val h = size.height
-                    val points = listOf(0.3f, 0.5f, 0.4f, 0.6f, 0.55f, 0.7f, 0.65f, 0.8f)
+                        val rawPoints = weeklyKmByDay.map { it.second.toFloat() }
+                    val maxVal = rawPoints.maxOrNull()?.takeIf { it > 0f } ?: 1f
+                    val points = rawPoints.map { it / maxVal }
 
                     val linePath = Path()
                     points.forEachIndexed { i, v ->

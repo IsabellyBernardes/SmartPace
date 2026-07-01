@@ -31,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.smartpace.navigation.Screen
 import com.example.smartpace.model.AlertType
+import com.example.smartpace.model.LatLngPoint
 import com.example.smartpace.viewmodel.AlertViewModel
 import com.example.smartpace.viewmodel.LocationViewModel
 import com.example.smartpace.viewmodel.RunViewModel
@@ -71,11 +72,12 @@ fun RunScreen(
     var isRunning by remember { mutableStateOf(true) }
     var isPaused by remember { mutableStateOf(false) }
     var elapsedSeconds by remember { mutableIntStateOf(0) }
-    var distanceKm by remember { mutableDoubleStateOf(0.0) }
     var showStopDialog by remember { mutableStateOf(false) }
 
     val currentLocation by locationViewModel.currentLocation.collectAsState()
     val routePoints by locationViewModel.routePoints.collectAsState()
+    val distanceMeters by locationViewModel.distanceMeters.collectAsState()
+    val distanceKm = distanceMeters / 1000.0
 
     val alerts by alertViewModel.alerts.collectAsState()
     val alertSaved by alertViewModel.saved.collectAsState()
@@ -113,12 +115,10 @@ fun RunScreen(
         }
     }
 
-    // Timer e distância simulada
     LaunchedEffect(isRunning, isPaused) {
         while (isRunning && !isPaused) {
             delay(1000L)
             elapsedSeconds++
-            distanceKm += 0.0025
         }
     }
 
@@ -147,7 +147,8 @@ fun RunScreen(
                         showStopDialog = false
                         isRunning = false
                         locationViewModel.stopTracking()
-                        runViewModel.saveRun(distanceKm, elapsedSeconds)
+                        val savedRoute = routePoints.map { LatLngPoint(it.latitude, it.longitude) }
+                        runViewModel.saveRun(distanceKm, elapsedSeconds, savedRoute)
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Run.route) { inclusive = true }
                         }
@@ -388,7 +389,11 @@ fun RunScreen(
             .background(Color(0xFF1E293B)),
         contentAlignment = Alignment.Center
     ) {
-        IconButton(onClick = { isPaused = !isPaused }) {
+        IconButton(onClick = {
+                        isPaused = !isPaused
+                        if (isPaused) locationViewModel.pauseTracking()
+                        else locationViewModel.resumeTracking(context)
+                    }) {
             Icon(
                 if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                 contentDescription = if (isPaused) "Retomar" else "Pausar",

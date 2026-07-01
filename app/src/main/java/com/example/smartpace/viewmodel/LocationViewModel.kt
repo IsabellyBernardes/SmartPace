@@ -2,6 +2,7 @@ package com.example.smartpace.viewmodel
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.location.Location
 import androidx.lifecycle.ViewModel
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -20,6 +21,10 @@ class LocationViewModel : ViewModel() {
     private val _routePoints = MutableStateFlow<List<LatLng>>(emptyList())
     val routePoints: StateFlow<List<LatLng>> = _routePoints
 
+    private val _distanceMeters = MutableStateFlow(0f)
+    val distanceMeters: StateFlow<Float> = _distanceMeters
+
+    private var lastLocation: Location? = null
     private var locationCallback: LocationCallback? = null
     private var fusedLocationClient: com.google.android.gms.location.FusedLocationProviderClient? = null
 
@@ -37,6 +42,10 @@ class LocationViewModel : ViewModel() {
                     val latLng = LatLng(location.latitude, location.longitude)
                     _currentLocation.value = latLng
                     _routePoints.value = _routePoints.value + latLng
+                    lastLocation?.let { prev ->
+                        _distanceMeters.value += prev.distanceTo(location)
+                    }
+                    lastLocation = location
                 }
             }
         }
@@ -46,6 +55,17 @@ class LocationViewModel : ViewModel() {
             locationCallback!!,
             android.os.Looper.getMainLooper()
         )
+    }
+
+    fun pauseTracking() {
+        locationCallback?.let {
+            fusedLocationClient?.removeLocationUpdates(it)
+        }
+        lastLocation = null
+    }
+
+    fun resumeTracking(context: Context) {
+        if (locationCallback != null) startTracking(context)
     }
 
     fun stopTracking() {
@@ -58,6 +78,8 @@ class LocationViewModel : ViewModel() {
     fun clearRoute() {
         _routePoints.value = emptyList()
         _currentLocation.value = null
+        _distanceMeters.value = 0f
+        lastLocation = null
     }
 
     override fun onCleared() {

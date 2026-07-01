@@ -8,5 +8,6 @@ data class UserProfile(
     val weeklyGoalKm: Double = 50.0,
     val totalRuns: Int = 0,
     val totalKm: Double = 0.0,
-    val avgPace: String = ""
+    val avgPace: String = "",
+    val weightKg: Double = 70.0
 )

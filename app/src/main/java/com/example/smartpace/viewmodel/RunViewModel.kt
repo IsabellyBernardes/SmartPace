@@ -2,6 +2,7 @@ package com.example.smartpace.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.smartpace.model.LatLngPoint
 import com.example.smartpace.model.Run
 import com.example.smartpace.repository.FirestoreRepository
 import com.example.smartpace.utils.paceToSeconds
@@ -49,6 +50,7 @@ class RunViewModel : ViewModel() {
     fun saveRun(
         distanceKm: Double,
         elapsedSeconds: Int,
+        routePoints: List<LatLngPoint> = emptyList(),
         calories: Int = 0
     ) {
         viewModelScope.launch {
@@ -60,7 +62,9 @@ class RunViewModel : ViewModel() {
                 val pace = "%d:%02d".format(paceSeconds / 60, paceSeconds % 60)
                 val dateFormat = SimpleDateFormat("dd/MM, HH:mm", Locale("pt", "BR"))
                 val date = dateFormat.format(Date())
-                val estimatedCalories = if (calories == 0) (distanceKm * 60).toInt() else calories
+                val weightKg = repository.getUserProfile()?.weightKg ?: DEFAULT_WEIGHT_KG
+                val estimatedCalories = if (calories > 0) calories
+                    else estimateCalories(distanceKm, elapsedSeconds, weightKg)
 
                 val run = Run(
                     distance = String.format("%.2f", distanceKm).toDouble(),
@@ -68,7 +72,8 @@ class RunViewModel : ViewModel() {
                     pace = pace,
                     date = date,
                     calories = estimatedCalories,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = System.currentTimeMillis(),
+                    routePoints = routePoints
                 )
                 repository.saveRun(run)
                 loadRuns()
@@ -76,8 +81,26 @@ class RunViewModel : ViewModel() {
         }
     }
 
+    // Estimativa por MET: kcal = MET * peso(kg) * horas.
+    // No intervalo de corrida, o MET aproxima-se da velocidade em km/h.
+    private fun estimateCalories(
+        distanceKm: Double,
+        elapsedSeconds: Int,
+        weightKg: Double = DEFAULT_WEIGHT_KG
+    ): Int {
+        if (distanceKm <= 0.0 || elapsedSeconds <= 0) return 0
+        val hours = elapsedSeconds / 3600.0
+        val speedKmh = distanceKm / hours
+        val met = speedKmh.coerceIn(6.0, 20.0)
+        return (met * weightKg * hours).toInt()
+    }
+
     val totalDistance get() = _runs.value.sumOf { it.distance }
     val totalRuns get() = _runs.value.size
     val bestPace get() = _runs.value.minByOrNull { paceToSeconds(it.pace) }?.pace ?: "--:--"
     val weeklyRuns get() = _runs.value.take(7)
+
+    companion object {
+        private const val DEFAULT_WEIGHT_KG = 70.0
+    }
 }

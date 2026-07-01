@@ -23,6 +23,13 @@ class FirestoreRepository {
             .await()
     }
 
+    suspend fun updateWeight(weightKg: Double) {
+        db.collection("users")
+            .document(userId)
+            .update("weightKg", weightKg)
+            .await()
+    }
+
     suspend fun getUserProfile(): UserProfile? {
         return try {
             val doc = db.collection("users")
