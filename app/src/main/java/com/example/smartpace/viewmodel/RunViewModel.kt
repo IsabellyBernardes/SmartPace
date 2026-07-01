@@ -38,9 +38,11 @@ class RunViewModel : ViewModel() {
             _runsState.value = RunsState.Loading
             try {
                 val firestoreRuns = repository.getRuns()
+                android.util.Log.d("SmartPaceSave", "getRuns retornou ${firestoreRuns.size} corridas")
                 _runs.value = firestoreRuns
                 _runsState.value = RunsState.Success(firestoreRuns)
             } catch (e: Exception) {
+                android.util.Log.e("SmartPaceSave", "Erro em getRuns", e)
                 _runs.value = emptyList()
                 _runsState.value = RunsState.Success(emptyList())
             }
@@ -53,6 +55,7 @@ class RunViewModel : ViewModel() {
         routePoints: List<LatLngPoint> = emptyList(),
         calories: Int = 0
     ) {
+        android.util.Log.d("SmartPaceSave", "saveRun chamado: dist=$distanceKm elapsed=$elapsedSeconds pontos=${routePoints.size}")
         viewModelScope.launch {
             try {
                 val minutes = elapsedSeconds / 60
@@ -75,9 +78,13 @@ class RunViewModel : ViewModel() {
                     timestamp = System.currentTimeMillis(),
                     routePoints = routePoints
                 )
-                repository.saveRun(run)
+                val id = repository.saveRun(run)
+                android.util.Log.d("SmartPaceSave", "saveRun OK, docId=$id")
                 loadRuns()
-            } catch (e: Exception) { }
+                android.util.Log.d("SmartPaceSave", "loadRuns concluído, total=${_runs.value.size}")
+            } catch (e: Exception) {
+                android.util.Log.e("SmartPaceSave", "Erro ao salvar corrida", e)
+            }
         }
     }
 

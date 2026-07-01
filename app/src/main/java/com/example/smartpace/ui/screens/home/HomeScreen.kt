@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -35,6 +36,13 @@ fun HomeScreen(
 ) {
     val runs by runViewModel.runs.collectAsState()
     val profile by profileViewModel.profile.collectAsState()
+
+    // Recarrega ao abrir a Home: cobre o caso de o usuário logar depois que os
+    // ViewModels compartilhados já foram criados (com dados vazios).
+    LaunchedEffect(Unit) {
+        runViewModel.loadRuns()
+        profileViewModel.loadProfile()
+    }
 
     val weeklyRuns = runs.filter { isThisWeek(it.timestamp) }
     val weeklyKmDone = weeklyRuns.sumOf { it.distance }

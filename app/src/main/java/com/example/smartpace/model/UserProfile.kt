@@ -3,6 +3,7 @@ package com.example.smartpace.model
 data class UserProfile(
     val id: String = "",
     val name: String = "",
+    val username: String = "",
     val email: String = "",
     val memberSince: String = "",
     val weeklyGoalKm: Double = 50.0,

@@ -82,6 +82,7 @@ fun ProfileScreen(
     )
 
     var showWeightDialog by remember { mutableStateOf(false) }
+    var showUsernameDialog by remember { mutableStateOf(false) }
 
     if (showWeightDialog) {
         WeightDialog(
@@ -90,6 +91,16 @@ fun ProfileScreen(
             onConfirm = { newWeight ->
                 profileViewModel.updateWeight(newWeight)
                 showWeightDialog = false
+            }
+        )
+    }
+
+    if (showUsernameDialog) {
+        UsernameDialog(
+            currentUsername = user.username,
+            onDismiss = { showUsernameDialog = false },
+            onConfirm = { newUsername, onResult ->
+                profileViewModel.updateUsername(newUsername, onResult)
             }
         )
     }
@@ -124,7 +135,11 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.width(14.dp))
                 Column {
                     Text(user.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                    Text("Corredor desde ${user.memberSince}", fontSize = 13.sp, color = Color(0xFF94A3B8))
+                    Text(
+                        if (user.username.isNotEmpty()) "@${user.username}"
+                        else "Corredor desde ${user.memberSince}",
+                        fontSize = 13.sp, color = Color(0xFF94A3B8)
+                    )
                 }
             }
             IconButton(
@@ -195,6 +210,18 @@ fun ProfileScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column {
+                SettingsItem(
+                    title = "Amigos",
+                    subtitle = "Buscar e gerenciar amigos",
+                    onClick = { navController.navigate(Screen.Friends.route) }
+                )
+                HorizontalDivider(color = Color(0xFFF1F5F9))
+                SettingsItem(
+                    title = "Nome de usuário",
+                    subtitle = if (user.username.isNotEmpty()) "@${user.username}" else "Definir username",
+                    onClick = { showUsernameDialog = true }
+                )
+                HorizontalDivider(color = Color(0xFFF1F5F9))
                 SettingsItem(
                     title = "Peso",
                     subtitle = "%.1f kg".format(user.weightKg),
@@ -331,6 +358,64 @@ fun WeightDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
+                Text("Cancelar", color = Color(0xFF94A3B8))
+            }
+        }
+    )
+}
+
+@Composable
+fun UsernameDialog(
+    currentUsername: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String, (Boolean) -> Unit) -> Unit
+) {
+    var text by remember { mutableStateOf(currentUsername) }
+    var saving by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    // username válido: 3-20 chars, apenas letras, números, ponto e underscore
+    val normalized = text.lowercase().trim()
+    val isValid = normalized.matches(Regex("^[a-z0-9._]{3,20}$"))
+
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("Nome de usuário", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Como seus amigos vão te encontrar. 3 a 20 caracteres: letras, números, ponto ou _.",
+                    fontSize = 13.sp, color = Color(0xFF64748B)
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it; error = null },
+                    singleLine = true,
+                    enabled = !saving,
+                    isError = error != null || (text.isNotEmpty() && !isValid),
+                    prefix = { Text("@") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                error?.let { Text(it, fontSize = 12.sp, color = Color(0xFFEF4444)) }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    saving = true
+                    error = null
+                    onConfirm(normalized) { ok ->
+                        saving = false
+                        if (ok) onDismiss() else error = "Este username já está em uso."
+                    }
+                },
+                enabled = isValid && !saving && normalized != currentUsername,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
+            ) { Text(if (saving) "Salvando..." else "Salvar") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !saving) {
                 Text("Cancelar", color = Color(0xFF94A3B8))
             }
         }

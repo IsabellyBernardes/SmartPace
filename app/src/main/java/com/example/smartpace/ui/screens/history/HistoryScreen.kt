@@ -1,16 +1,21 @@
 package com.example.smartpace.ui.screens.history
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,15 +25,34 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.smartpace.model.Run
+import com.example.smartpace.navigation.Screen
 import com.example.smartpace.ui.components.RouteThumbnail
 import com.example.smartpace.utils.isLastWeek
 import com.example.smartpace.utils.isThisWeek
 import com.example.smartpace.utils.isToday
 import com.example.smartpace.viewmodel.RunViewModel
 
+enum class HistoryFilter(val label: String, val maxAgeDays: Long?) {
+    ALL("Todas", null),
+    WEEK("Últimos 7 dias", 7),
+    MONTH("Últimos 30 dias", 30),
+    YEAR("Último ano", 365);
+
+    fun matches(timestamp: Long): Boolean {
+        val days = maxAgeDays ?: return true
+        val ageMs = System.currentTimeMillis() - timestamp
+        return ageMs <= days * 24L * 60L * 60L * 1000L
+    }
+}
+
 @Composable
 fun HistoryScreen(navController: NavController, runViewModel: RunViewModel = viewModel()) {
-    val runs by runViewModel.runs.collectAsState()
+    val allRuns by runViewModel.runs.collectAsState()
+
+    var selectedFilter by remember { mutableStateOf(HistoryFilter.ALL) }
+    var filterMenuOpen by remember { mutableStateOf(false) }
+
+    val runs = allRuns.filter { selectedFilter.matches(it.timestamp) }
 
     val todayRuns = runs.filter { isToday(it.timestamp) }
     val thisWeekRuns = runs.filter { isThisWeek(it.timestamp) && !isToday(it.timestamp) }
@@ -52,16 +76,38 @@ fun HistoryScreen(navController: NavController, runViewModel: RunViewModel = vie
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Histórico", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-            OutlinedButton(
-                onClick = {},
-                shape = RoundedCornerShape(20.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                Icon(Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF64748B))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Filtrar", fontSize = 13.sp, color = Color(0xFF64748B))
+            Box {
+                OutlinedButton(
+                    onClick = { filterMenuOpen = true },
+                    shape = RoundedCornerShape(20.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Icon(Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF64748B))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        if (selectedFilter == HistoryFilter.ALL) "Filtrar" else selectedFilter.label,
+                        fontSize = 13.sp, color = Color(0xFF64748B)
+                    )
+                }
+                DropdownMenu(
+                    expanded = filterMenuOpen,
+                    onDismissRequest = { filterMenuOpen = false }
+                ) {
+                    HistoryFilter.entries.forEach { filter ->
+                        DropdownMenuItem(
+                            text = { Text(filter.label) },
+                            onClick = {
+                                selectedFilter = filter
+                                filterMenuOpen = false
+                            },
+                            trailingIcon = if (filter == selectedFilter) {
+                                { Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF3B82F6)) }
+                            } else null
+                        )
+                    }
+                }
             }
         }
 
@@ -99,15 +145,17 @@ fun HistoryScreen(navController: NavController, runViewModel: RunViewModel = vie
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("📋", fontSize = 40.sp)
+                    val filterActive = selectedFilter != HistoryFilter.ALL
+                    Text(if (filterActive) "🔍" else "📋", fontSize = 40.sp)
                     Text(
-                        "Sem corridas registradas",
+                        if (filterActive) "Nenhuma corrida no período" else "Sem corridas registradas",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF0F172A)
                     )
                     Text(
-                        "Suas corridas aparecerão aqui após a primeira atividade",
+                        if (filterActive) "Tente selecionar outro período no filtro"
+                        else "Suas corridas aparecerão aqui após a primeira atividade",
                         fontSize = 13.sp,
                         color = Color(0xFF94A3B8),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -115,10 +163,10 @@ fun HistoryScreen(navController: NavController, runViewModel: RunViewModel = vie
                 }
             }
         } else {
-            if (todayRuns.isNotEmpty()) RunGroup(label = "HOJE", runs = todayRuns)
-            if (thisWeekRuns.isNotEmpty()) RunGroup(label = "ESTA SEMANA", runs = thisWeekRuns)
-            if (lastWeekRuns.isNotEmpty()) RunGroup(label = "SEMANA PASSADA", runs = lastWeekRuns)
-            if (olderRuns.isNotEmpty()) RunGroup(label = "ANTERIORES", runs = olderRuns)
+            if (todayRuns.isNotEmpty()) RunGroup(label = "HOJE", runs = todayRuns, navController = navController)
+            if (thisWeekRuns.isNotEmpty()) RunGroup(label = "ESTA SEMANA", runs = thisWeekRuns, navController = navController)
+            if (lastWeekRuns.isNotEmpty()) RunGroup(label = "SEMANA PASSADA", runs = lastWeekRuns, navController = navController)
+            if (olderRuns.isNotEmpty()) RunGroup(label = "ANTERIORES", runs = olderRuns, navController = navController)
         }
 
         Spacer(modifier = Modifier.height(80.dp))
@@ -135,7 +183,7 @@ fun HistorySummaryItem(value: String, label: String) {
 }
 
 @Composable
-fun RunGroup(label: String, runs: List<Run>) {
+fun RunGroup(label: String, runs: List<Run>, navController: NavController) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = label,
@@ -145,14 +193,25 @@ fun RunGroup(label: String, runs: List<Run>) {
             color = Color(0xFF94A3B8),
             modifier = Modifier.padding(vertical = 4.dp)
         )
-        runs.forEach { run -> HistoryRunCard(run = run) }
+        runs.forEach { run ->
+            HistoryRunCard(
+                run = run,
+                onClick = {
+                    if (run.id.isNotEmpty()) {
+                        navController.navigate(Screen.RunDetail.createRoute(run.id))
+                    }
+                }
+            )
+        }
     }
 }
 
 @Composable
-fun HistoryRunCard(run: Run) {
+fun HistoryRunCard(run: Run, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
