@@ -2,9 +2,11 @@ package com.example.smartpace.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.smartpace.model.LatLngPoint
 import com.example.smartpace.model.Run
 import com.example.smartpace.repository.FirestoreRepository
 import com.example.smartpace.utils.paceToSeconds
+import com.example.smartpace.utils.parseDurationToSeconds
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -39,6 +41,9 @@ class RunViewModel : ViewModel() {
                 val firestoreRuns = repository.getRuns()
                 _runs.value = firestoreRuns
                 _runsState.value = RunsState.Success(firestoreRuns)
+                // Mantém o agregado do perfil atualizado (visível aos amigos),
+                // mesmo para corridas salvas antes desta funcionalidade existir.
+                try { syncStats(firestoreRuns) } catch (e: Exception) { }
             } catch (e: Exception) {
                 _runs.value = emptyList()
                 _runsState.value = RunsState.Success(emptyList())
@@ -49,6 +54,7 @@ class RunViewModel : ViewModel() {
     fun saveRun(
         distanceKm: Double,
         elapsedSeconds: Int,
+        routePoints: List<LatLngPoint> = emptyList(),
         calories: Int = 0
     ) {
         viewModelScope.launch {
@@ -60,24 +66,62 @@ class RunViewModel : ViewModel() {
                 val pace = "%d:%02d".format(paceSeconds / 60, paceSeconds % 60)
                 val dateFormat = SimpleDateFormat("dd/MM, HH:mm", Locale("pt", "BR"))
                 val date = dateFormat.format(Date())
-                val estimatedCalories = if (calories == 0) (distanceKm * 60).toInt() else calories
+                val weightKg = repository.getUserProfile()?.weightKg ?: DEFAULT_WEIGHT_KG
+                val estimatedCalories = if (calories > 0) calories
+                    else estimateCalories(distanceKm, elapsedSeconds, weightKg)
 
                 val run = Run(
-                    distance = String.format("%.2f", distanceKm).toDouble(),
+                    // Arredonda para 2 casas sem passar por String (evita bug de locale:
+                    // pt-BR formata com vírgula e toDouble() só aceita ponto).
+                    distance = kotlin.math.round(distanceKm * 100) / 100.0,
                     duration = duration,
                     pace = pace,
                     date = date,
                     calories = estimatedCalories,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = System.currentTimeMillis(),
+                    routePoints = routePoints
                 )
                 repository.saveRun(run)
-                loadRuns()
+                val updated = repository.getRuns()
+                _runs.value = updated
+                _runsState.value = RunsState.Success(updated)
+                syncStats(updated)
             } catch (e: Exception) { }
         }
+    }
+
+    /** Grava no perfil as estatísticas agregadas, para os amigos poderem ver. */
+    private suspend fun syncStats(runs: List<Run>) {
+        val totalRuns = runs.size
+        val totalKm = runs.sumOf { it.distance }
+        val totalDurationSec = runs.sumOf { parseDurationToSeconds(it.duration) }
+        val avgPace = if (totalKm > 0) {
+            val paceSec = (totalDurationSec / totalKm).toInt()
+            "%d:%02d".format(paceSec / 60, paceSec % 60)
+        } else ""
+        repository.updateUserStats(totalRuns, totalKm, avgPace)
+    }
+
+    // Estimativa por MET: kcal = MET * peso(kg) * horas.
+    // No intervalo de corrida, o MET aproxima-se da velocidade em km/h.
+    private fun estimateCalories(
+        distanceKm: Double,
+        elapsedSeconds: Int,
+        weightKg: Double = DEFAULT_WEIGHT_KG
+    ): Int {
+        if (distanceKm <= 0.0 || elapsedSeconds <= 0) return 0
+        val hours = elapsedSeconds / 3600.0
+        val speedKmh = distanceKm / hours
+        val met = speedKmh.coerceIn(6.0, 20.0)
+        return (met * weightKg * hours).toInt()
     }
 
     val totalDistance get() = _runs.value.sumOf { it.distance }
     val totalRuns get() = _runs.value.size
     val bestPace get() = _runs.value.minByOrNull { paceToSeconds(it.pace) }?.pace ?: "--:--"
     val weeklyRuns get() = _runs.value.take(7)
+
+    companion object {
+        private const val DEFAULT_WEIGHT_KG = 70.0
+    }
 }

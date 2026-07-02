@@ -20,20 +20,28 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
 import com.example.smartpace.ui.screens.auth.LoginScreen
 import com.example.smartpace.ui.screens.auth.RegisterScreen
 import com.example.smartpace.ui.screens.dashboard.DashboardScreen
+import com.example.smartpace.ui.screens.friends.FriendProfileScreen
+import com.example.smartpace.ui.screens.friends.FriendsScreen
 import com.example.smartpace.ui.screens.history.HistoryScreen
 import com.example.smartpace.ui.screens.home.HomeScreen
 import com.example.smartpace.ui.screens.profile.ProfileScreen
 import com.example.smartpace.ui.screens.run.RunScreen
+import com.example.smartpace.ui.screens.run.RunDetailScreen
+import com.example.smartpace.viewmodel.ProfileViewModel
+import com.example.smartpace.viewmodel.RunViewModel
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -43,6 +51,13 @@ sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard")
     object Profile : Screen("profile")
     object Run : Screen("run")
+    object Friends : Screen("friends")
+    object RunDetail : Screen("run_detail/{runId}") {
+        fun createRoute(runId: String) = "run_detail/$runId"
+    }
+    object FriendProfile : Screen("friend_profile/{uid}") {
+        fun createRoute(uid: String) = "friend_profile/$uid"
+    }
 }
 
 private val mainRoutes = setOf(
@@ -173,6 +188,12 @@ fun SmartPaceNavGraph(
     startDestination: String = Screen.Login.route,
     modifier: Modifier = Modifier,
 ) {
+    // ViewModels compartilhados no escopo da Activity: garantem que a lista de
+    // corridas e o perfil sejam os mesmos em todas as telas, e que a gravação de
+    // uma corrida sobreviva à navegação (não é cancelada ao sair da tela de corrida).
+    val runViewModel: RunViewModel = viewModel()
+    val profileViewModel: ProfileViewModel = viewModel()
+
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -180,10 +201,27 @@ fun SmartPaceNavGraph(
     ) {
         composable(Screen.Login.route) { LoginScreen(navController) }
         composable(Screen.Register.route) { RegisterScreen(navController) }
-        composable(Screen.Home.route) { HomeScreen(navController) }
-        composable(Screen.History.route) { HistoryScreen(navController) }
-        composable(Screen.Dashboard.route) { DashboardScreen(navController) }
-        composable(Screen.Profile.route) { ProfileScreen(navController) }
-        composable(Screen.Run.route) { RunScreen(navController) }
+        composable(Screen.Home.route) { HomeScreen(navController, runViewModel, profileViewModel) }
+        composable(Screen.History.route) { HistoryScreen(navController, runViewModel) }
+        composable(Screen.Dashboard.route) { DashboardScreen(navController, runViewModel) }
+        composable(Screen.Profile.route) {
+            ProfileScreen(navController, profileViewModel = profileViewModel, runViewModel = runViewModel)
+        }
+        composable(Screen.Run.route) { RunScreen(navController, runViewModel) }
+        composable(Screen.Friends.route) { FriendsScreen(navController) }
+        composable(
+            Screen.RunDetail.route,
+            arguments = listOf(navArgument("runId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val runId = backStackEntry.arguments?.getString("runId") ?: ""
+            RunDetailScreen(navController, runId, runViewModel)
+        }
+        composable(
+            Screen.FriendProfile.route,
+            arguments = listOf(navArgument("uid") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val uid = backStackEntry.arguments?.getString("uid") ?: ""
+            FriendProfileScreen(navController, uid)
+        }
     }
 }
