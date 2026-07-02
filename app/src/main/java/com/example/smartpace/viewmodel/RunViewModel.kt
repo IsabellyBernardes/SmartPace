@@ -6,6 +6,7 @@ import com.example.smartpace.model.LatLngPoint
 import com.example.smartpace.model.Run
 import com.example.smartpace.repository.FirestoreRepository
 import com.example.smartpace.utils.paceToSeconds
+import com.example.smartpace.utils.parseDurationToSeconds
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -38,11 +39,12 @@ class RunViewModel : ViewModel() {
             _runsState.value = RunsState.Loading
             try {
                 val firestoreRuns = repository.getRuns()
-                android.util.Log.d("SmartPaceSave", "getRuns retornou ${firestoreRuns.size} corridas")
                 _runs.value = firestoreRuns
                 _runsState.value = RunsState.Success(firestoreRuns)
+                // Mantém o agregado do perfil atualizado (visível aos amigos),
+                // mesmo para corridas salvas antes desta funcionalidade existir.
+                try { syncStats(firestoreRuns) } catch (e: Exception) { }
             } catch (e: Exception) {
-                android.util.Log.e("SmartPaceSave", "Erro em getRuns", e)
                 _runs.value = emptyList()
                 _runsState.value = RunsState.Success(emptyList())
             }
@@ -55,7 +57,6 @@ class RunViewModel : ViewModel() {
         routePoints: List<LatLngPoint> = emptyList(),
         calories: Int = 0
     ) {
-        android.util.Log.d("SmartPaceSave", "saveRun chamado: dist=$distanceKm elapsed=$elapsedSeconds pontos=${routePoints.size}")
         viewModelScope.launch {
             try {
                 val minutes = elapsedSeconds / 60
@@ -70,7 +71,9 @@ class RunViewModel : ViewModel() {
                     else estimateCalories(distanceKm, elapsedSeconds, weightKg)
 
                 val run = Run(
-                    distance = String.format("%.2f", distanceKm).toDouble(),
+                    // Arredonda para 2 casas sem passar por String (evita bug de locale:
+                    // pt-BR formata com vírgula e toDouble() só aceita ponto).
+                    distance = kotlin.math.round(distanceKm * 100) / 100.0,
                     duration = duration,
                     pace = pace,
                     date = date,
@@ -78,14 +81,25 @@ class RunViewModel : ViewModel() {
                     timestamp = System.currentTimeMillis(),
                     routePoints = routePoints
                 )
-                val id = repository.saveRun(run)
-                android.util.Log.d("SmartPaceSave", "saveRun OK, docId=$id")
-                loadRuns()
-                android.util.Log.d("SmartPaceSave", "loadRuns concluído, total=${_runs.value.size}")
-            } catch (e: Exception) {
-                android.util.Log.e("SmartPaceSave", "Erro ao salvar corrida", e)
-            }
+                repository.saveRun(run)
+                val updated = repository.getRuns()
+                _runs.value = updated
+                _runsState.value = RunsState.Success(updated)
+                syncStats(updated)
+            } catch (e: Exception) { }
         }
+    }
+
+    /** Grava no perfil as estatísticas agregadas, para os amigos poderem ver. */
+    private suspend fun syncStats(runs: List<Run>) {
+        val totalRuns = runs.size
+        val totalKm = runs.sumOf { it.distance }
+        val totalDurationSec = runs.sumOf { parseDurationToSeconds(it.duration) }
+        val avgPace = if (totalKm > 0) {
+            val paceSec = (totalDurationSec / totalKm).toInt()
+            "%d:%02d".format(paceSec / 60, paceSec % 60)
+        } else ""
+        repository.updateUserStats(totalRuns, totalKm, avgPace)
     }
 
     // Estimativa por MET: kcal = MET * peso(kg) * horas.

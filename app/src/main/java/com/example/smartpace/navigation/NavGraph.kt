@@ -33,6 +33,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.example.smartpace.ui.screens.auth.LoginScreen
 import com.example.smartpace.ui.screens.auth.RegisterScreen
 import com.example.smartpace.ui.screens.dashboard.DashboardScreen
+import com.example.smartpace.ui.screens.friends.FriendProfileScreen
 import com.example.smartpace.ui.screens.friends.FriendsScreen
 import com.example.smartpace.ui.screens.history.HistoryScreen
 import com.example.smartpace.ui.screens.home.HomeScreen
@@ -53,6 +54,9 @@ sealed class Screen(val route: String) {
     object Friends : Screen("friends")
     object RunDetail : Screen("run_detail/{runId}") {
         fun createRoute(runId: String) = "run_detail/$runId"
+    }
+    object FriendProfile : Screen("friend_profile/{uid}") {
+        fun createRoute(uid: String) = "friend_profile/$uid"
     }
 }
 
@@ -211,6 +215,13 @@ fun SmartPaceNavGraph(
         ) { backStackEntry ->
             val runId = backStackEntry.arguments?.getString("runId") ?: ""
             RunDetailScreen(navController, runId, runViewModel)
+        }
+        composable(
+            Screen.FriendProfile.route,
+            arguments = listOf(navArgument("uid") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val uid = backStackEntry.arguments?.getString("uid") ?: ""
+            FriendProfileScreen(navController, uid)
         }
     }
 }

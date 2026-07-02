@@ -31,6 +31,7 @@ import com.example.smartpace.utils.isLastWeek
 import com.example.smartpace.utils.isThisWeek
 import com.example.smartpace.utils.isToday
 import com.example.smartpace.viewmodel.RunViewModel
+import com.example.smartpace.viewmodel.RunsState
 
 enum class HistoryFilter(val label: String, val maxAgeDays: Long?) {
     ALL("Todas", null),
@@ -48,6 +49,8 @@ enum class HistoryFilter(val label: String, val maxAgeDays: Long?) {
 @Composable
 fun HistoryScreen(navController: NavController, runViewModel: RunViewModel = viewModel()) {
     val allRuns by runViewModel.runs.collectAsState()
+    val runsState by runViewModel.runsState.collectAsState()
+    val isLoading = runsState is RunsState.Loading
 
     var selectedFilter by remember { mutableStateOf(HistoryFilter.ALL) }
     var filterMenuOpen by remember { mutableStateOf(false) }
@@ -131,7 +134,18 @@ fun HistoryScreen(navController: NavController, runViewModel: RunViewModel = vie
             }
         }
 
-        if (runs.isEmpty()) {
+        if (isLoading && allRuns.isEmpty()) {
+            // Enquanto o Firestore responde, mostra carregamento em vez de
+            // exibir prematuramente "sem corridas".
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(40.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFF3B82F6))
+            }
+        } else if (runs.isEmpty()) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),

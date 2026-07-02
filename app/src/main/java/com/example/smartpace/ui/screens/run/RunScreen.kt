@@ -306,10 +306,12 @@ fun RunScreen(
                     )
                 }
                 alerts.forEach { alert ->
+                    val markerIcon = remember(alert.type) { emojiMarkerDescriptor(alert.type.emoji) }
                     Marker(
                         state = MarkerState(position = LatLng(alert.lat, alert.lng)),
                         title = alert.type.label,
-                        snippet = "${alert.type.emoji} ${alert.sightings} avistamentos"
+                        snippet = "${alert.type.emoji} ${alert.sightings} avistamentos",
+                        icon = markerIcon
                     )
                 }
                 currentLocation?.let { loc ->

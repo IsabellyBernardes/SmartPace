@@ -65,6 +65,16 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
+    fun updateWeeklyGoal(goalKm: Double) {
+        val updated = _profile.value.copy(weeklyGoalKm = goalKm)
+        _profile.value = updated
+        viewModelScope.launch {
+            try {
+                repository.saveUserProfile(updated)
+            } catch (e: Exception) { }
+        }
+    }
+
     /** Tenta reservar o username; chama onResult(true) se salvou, false se já em uso. */
     fun updateUsername(username: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {

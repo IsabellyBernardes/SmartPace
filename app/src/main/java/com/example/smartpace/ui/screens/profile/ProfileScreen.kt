@@ -83,6 +83,7 @@ fun ProfileScreen(
 
     var showWeightDialog by remember { mutableStateOf(false) }
     var showUsernameDialog by remember { mutableStateOf(false) }
+    var showGoalDialog by remember { mutableStateOf(false) }
 
     if (showWeightDialog) {
         WeightDialog(
@@ -101,6 +102,17 @@ fun ProfileScreen(
             onDismiss = { showUsernameDialog = false },
             onConfirm = { newUsername, onResult ->
                 profileViewModel.updateUsername(newUsername, onResult)
+            }
+        )
+    }
+
+    if (showGoalDialog) {
+        WeeklyGoalDialog(
+            currentGoal = user.weeklyGoalKm,
+            onDismiss = { showGoalDialog = false },
+            onConfirm = { newGoal ->
+                profileViewModel.updateWeeklyGoal(newGoal)
+                showGoalDialog = false
             }
         )
     }
@@ -228,7 +240,11 @@ fun ProfileScreen(
                     onClick = { showWeightDialog = true }
                 )
                 HorizontalDivider(color = Color(0xFFF1F5F9))
-                SettingsItem(title = "Metas semanais", subtitle = "${user.weeklyGoalKm.toInt()} km / semana")
+                SettingsItem(
+                    title = "Metas semanais",
+                    subtitle = "${user.weeklyGoalKm.toInt()} km / semana",
+                    onClick = { showGoalDialog = true }
+                )
                 HorizontalDivider(color = Color(0xFFF1F5F9))
                 SettingsItem(title = "Notificações", subtitle = "Ativadas")
                 HorizontalDivider(color = Color(0xFFF1F5F9))
@@ -344,6 +360,51 @@ fun WeightDialog(
                     singleLine = true,
                     isError = text.isNotEmpty() && !isValid,
                     suffix = { Text("kg") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { parsed?.let(onConfirm) },
+                enabled = isValid,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
+            ) { Text("Salvar") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar", color = Color(0xFF94A3B8))
+            }
+        }
+    )
+}
+
+@Composable
+fun WeeklyGoalDialog(
+    currentGoal: Double,
+    onDismiss: () -> Unit,
+    onConfirm: (Double) -> Unit
+) {
+    var text by remember { mutableStateOf(currentGoal.toInt().toString()) }
+    val parsed = text.replace(",", ".").toDoubleOrNull()
+    val isValid = parsed != null && parsed in 1.0..500.0
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Meta semanal", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Quantos quilômetros você quer correr por semana?",
+                    fontSize = 13.sp, color = Color(0xFF64748B)
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = true,
+                    isError = text.isNotEmpty() && !isValid,
+                    suffix = { Text("km") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )

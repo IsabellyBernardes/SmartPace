@@ -33,6 +33,9 @@ class FriendViewModel : ViewModel() {
     private val _requestSent = MutableStateFlow(false)
     val requestSent: StateFlow<Boolean> = _requestSent
 
+    private val _viewedProfile = MutableStateFlow<UserProfile?>(null)
+    val viewedProfile: StateFlow<UserProfile?> = _viewedProfile
+
     init {
         loadRequests()
         loadFriends()
@@ -61,6 +64,12 @@ class FriendViewModel : ViewModel() {
                 repository.sendFriendRequest(toUid)
                 _requestSent.value = true
             } catch (e: Exception) { }
+        }
+    }
+
+    fun loadProfile(uid: String) {
+        viewModelScope.launch {
+            _viewedProfile.value = repository.getUserProfileById(uid)
         }
     }
 

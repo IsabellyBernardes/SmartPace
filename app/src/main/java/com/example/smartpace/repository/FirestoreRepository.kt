@@ -111,6 +111,22 @@ class FirestoreRepository {
 
     private fun normalizeUsername(raw: String) = raw.lowercase().trim()
 
+    /** Sincroniza estatísticas agregadas no perfil, visíveis para amigos. */
+    suspend fun updateUserStats(totalRuns: Int, totalKm: Double, avgPace: String) {
+        if (userId.isEmpty()) return
+        db.collection("users")
+            .document(userId)
+            .set(
+                mapOf(
+                    "totalRuns" to totalRuns,
+                    "totalKm" to totalKm,
+                    "avgPace" to avgPace
+                ),
+                SetOptions.merge()
+            )
+            .await()
+    }
+
     suspend fun getUserProfileById(uid: String): UserProfile? {
         return try {
             db.collection("users").document(uid).get().await()

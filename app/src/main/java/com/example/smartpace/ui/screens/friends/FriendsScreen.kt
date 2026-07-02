@@ -1,6 +1,7 @@
 package com.example.smartpace.ui.screens.friends
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -27,6 +28,7 @@ import androidx.navigation.NavController
 import com.example.smartpace.model.Friend
 import com.example.smartpace.model.FriendRequest
 import com.example.smartpace.model.UserProfile
+import com.example.smartpace.navigation.Screen
 import com.example.smartpace.viewmodel.FriendViewModel
 import com.example.smartpace.viewmodel.SearchState
 
@@ -75,9 +77,17 @@ fun FriendsScreen(
                     friendViewModel.clearSearch()
                 },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Buscar por @username") },
+                placeholder = { Text("Buscar por @username", color = Color(0xFF94A3B8)) },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color(0xFF0F172A),
+                    unfocusedTextColor = Color(0xFF0F172A),
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    focusedBorderColor = Color(0xFF3B82F6),
+                    unfocusedBorderColor = Color(0xFFE2E8F0)
+                ),
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF94A3B8)) },
                 trailingIcon = {
                     TextButton(onClick = { friendViewModel.search(query) }) {
@@ -126,7 +136,14 @@ fun FriendsScreen(
                     fontSize = 13.sp, color = Color(0xFF94A3B8)
                 )
             } else {
-                friends.forEach { friend -> FriendCard(friend) }
+                friends.forEach { friend ->
+                    FriendCard(
+                        friend = friend,
+                        onClick = {
+                            navController.navigate(Screen.FriendProfile.createRoute(friend.uid))
+                        }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(40.dp))
@@ -225,9 +242,11 @@ private fun RequestCard(request: FriendRequest, onAccept: () -> Unit, onReject: 
 }
 
 @Composable
-private fun FriendCard(friend: Friend) {
+private fun FriendCard(friend: Friend, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
