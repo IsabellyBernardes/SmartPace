@@ -245,10 +245,9 @@ fun ProfileScreen(
                     subtitle = "${user.weeklyGoalKm.toInt()} km / semana",
                     onClick = { showGoalDialog = true }
                 )
-                HorizontalDivider(color = Color(0xFFF1F5F9))
-                SettingsItem(title = "Notificações", subtitle = "Ativadas")
-                HorizontalDivider(color = Color(0xFFF1F5F9))
-                SettingsItem(title = "Dispositivo conectado", subtitle = "Nenhum")
+                // Placeholder do smartwatch — reativar quando a integração for implementada:
+                // HorizontalDivider(color = Color(0xFFF1F5F9))
+                // SettingsItem(title = "Dispositivo conectado", subtitle = "Nenhum")
             }
         }
 

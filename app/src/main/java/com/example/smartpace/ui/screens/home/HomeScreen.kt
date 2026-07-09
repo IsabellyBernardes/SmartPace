@@ -126,7 +126,7 @@ fun HomeHeader(name: String, weatherState: WeatherState) {
 
 @Composable
 fun WeatherChip(state: WeatherState) {
-    if (state !is WeatherState.Success) return  // some/silencioso enquanto carrega ou falha
+    if (state !is WeatherState.Success) return
     val info = state.info
     Row(
         modifier = Modifier

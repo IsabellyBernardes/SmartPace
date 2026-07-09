@@ -40,7 +40,6 @@ fun RunDetailScreen(
             .fillMaxSize()
             .background(Color(0xFFF8FAFC))
     ) {
-        // Barra superior
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -143,7 +142,6 @@ private fun ColumnScope.RunDetailContent(run: Run) {
         }
     }
 
-    // Cartão de métricas
     Card(
         modifier = Modifier
             .fillMaxWidth()

@@ -1,5 +1,6 @@
 package com.example.smartpace.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smartpace.model.LatLngPoint
@@ -7,6 +8,7 @@ import com.example.smartpace.model.Run
 import com.example.smartpace.repository.FirestoreRepository
 import com.example.smartpace.utils.paceToSeconds
 import com.example.smartpace.utils.parseDurationToSeconds
+import com.example.smartpace.utils.reverseGeocodeRegion
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -54,6 +56,7 @@ class RunViewModel : ViewModel() {
     fun saveRun(
         distanceKm: Double,
         elapsedSeconds: Int,
+        appContext: Context,
         routePoints: List<LatLngPoint> = emptyList(),
         calories: Int = 0
     ) {
@@ -70,6 +73,10 @@ class RunViewModel : ViewModel() {
                 val estimatedCalories = if (calories > 0) calories
                     else estimateCalories(distanceKm, elapsedSeconds, weightKg)
 
+                val start = routePoints.firstOrNull()
+                val region = if (start != null)
+                    reverseGeocodeRegion(appContext, start.lat, start.lng) else ""
+
                 val run = Run(
                     // Arredonda para 2 casas sem passar por String (evita bug de locale:
                     // pt-BR formata com vírgula e toDouble() só aceita ponto).
@@ -79,6 +86,7 @@ class RunViewModel : ViewModel() {
                     date = date,
                     calories = estimatedCalories,
                     timestamp = System.currentTimeMillis(),
+                    region = region,
                     routePoints = routePoints
                 )
                 repository.saveRun(run)

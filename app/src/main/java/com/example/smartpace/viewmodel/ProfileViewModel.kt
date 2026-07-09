@@ -53,7 +53,6 @@ class ProfileViewModel : ViewModel() {
     }
 
     fun updateWeight(weightKg: Double) {
-        // Atualização otimista para refletir na UI imediatamente
         val updated = _profile.value.copy(weightKg = weightKg)
         _profile.value = updated
         viewModelScope.launch {

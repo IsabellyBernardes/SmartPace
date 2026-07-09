@@ -2,6 +2,7 @@ package com.example.smartpace.ui.screens.run
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -32,8 +33,9 @@ import androidx.navigation.NavController
 import com.example.smartpace.navigation.Screen
 import com.example.smartpace.model.AlertType
 import com.example.smartpace.model.LatLngPoint
+import com.example.smartpace.service.RunService
+import com.example.smartpace.service.RunTracker
 import com.example.smartpace.viewmodel.AlertViewModel
-import com.example.smartpace.viewmodel.LocationViewModel
 import com.example.smartpace.viewmodel.RunViewModel
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -48,7 +50,6 @@ import kotlinx.coroutines.launch
 fun RunScreen(
     navController: NavController,
     runViewModel: RunViewModel = viewModel(),
-    locationViewModel: LocationViewModel = viewModel(),
     alertViewModel: AlertViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -62,23 +63,26 @@ fun RunScreen(
         )
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasLocationPermission = granted
-        if (granted) locationViewModel.startTracking(context)
-    }
-
-    var isRunning by remember { mutableStateOf(true) }
-    var isPaused by remember { mutableStateOf(false) }
-    var elapsedSeconds by remember { mutableIntStateOf(0) }
-    var showStopDialog by remember { mutableStateOf(false) }
-
-    val currentLocation by locationViewModel.currentLocation.collectAsState()
-    val routePoints by locationViewModel.routePoints.collectAsState()
-    val distanceMeters by locationViewModel.distanceMeters.collectAsState()
+    // Estado da corrida vem do serviço (que continua em background).
+    val currentLocation by RunTracker.currentLocation.collectAsState()
+    val routePoints by RunTracker.routePoints.collectAsState()
+    val distanceMeters by RunTracker.distanceMeters.collectAsState()
+    val elapsedSeconds by RunTracker.elapsedSeconds.collectAsState()
+    val isPaused by RunTracker.isPaused.collectAsState()
+    val nearbyAlert by RunTracker.nearbyAlert.collectAsState()
     val distanceKm = distanceMeters / 1000.0
 
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        hasLocationPermission = granted
+        if (granted && !RunTracker.isTracking.value) {
+            RunService.send(context, RunService.ACTION_START)
+        }
+    }
+
+    var showStopDialog by remember { mutableStateOf(false) }
     val alerts by alertViewModel.alerts.collectAsState()
     val alertSaved by alertViewModel.saved.collectAsState()
     var showAlertDialog by remember { mutableStateOf(false) }
@@ -89,11 +93,19 @@ fun RunScreen(
         )
     }
 
+    // Inicia o serviço ao entrar (se ainda não houver corrida em andamento).
     LaunchedEffect(Unit) {
+        val permissions = buildList {
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }.toTypedArray()
+
         if (hasLocationPermission) {
-            locationViewModel.startTracking(context)
+            if (!RunTracker.isTracking.value) RunService.send(context, RunService.ACTION_START)
         } else {
-            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            permissionLauncher.launch(permissions)
         }
     }
 
@@ -115,16 +127,11 @@ fun RunScreen(
         }
     }
 
-    LaunchedEffect(isRunning, isPaused) {
-        while (isRunning && !isPaused) {
-            delay(1000L)
-            elapsedSeconds++
+    LaunchedEffect(nearbyAlert) {
+        if (nearbyAlert != null) {
+            delay(6000L)
+            RunTracker.nearbyAlert.value = null
         }
-    }
-
-    // Parar rastreamento ao sair da tela
-    DisposableEffect(Unit) {
-        onDispose { locationViewModel.stopTracking() }
     }
 
     val minutes = elapsedSeconds / 60
@@ -145,10 +152,9 @@ fun RunScreen(
                 Button(
                     onClick = {
                         showStopDialog = false
-                        isRunning = false
-                        locationViewModel.stopTracking()
                         val savedRoute = routePoints.map { LatLngPoint(it.latitude, it.longitude) }
-                        runViewModel.saveRun(distanceKm, elapsedSeconds, savedRoute)
+                        runViewModel.saveRun(distanceKm, elapsedSeconds, context.applicationContext, savedRoute)
+                        RunService.send(context, RunService.ACTION_STOP)
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Run.route) { inclusive = true }
                         }
@@ -255,6 +261,28 @@ fun RunScreen(
             }
         }
 
+        // Aviso de alerta próximo (também vibra pelo serviço)
+        nearbyAlert?.let { alert ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFF97316))
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(alert.type.emoji, fontSize = 20.sp)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            "Atenção: ${alert.type.label} por perto",
+                            color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold
+                        )
+                        Text("Fique atento à sua volta", color = Color(0xFFFFF7ED), fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -347,83 +375,58 @@ fun RunScreen(
             }
         }
 
-        if (alertSaved) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFF0F172A))
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF22C55E))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("✓", color = Color.White, fontWeight = FontWeight.Bold)
-                        Text("Alerta registrado com sucesso!", color = Color.White, fontSize = 13.sp)
-                    }
-                }
-            }
-        }
-
         HorizontalDivider(
             color = Color(0xFF1E293B),
             thickness = 1.dp
         )
 
         Row(
-    modifier = Modifier
-        .fillMaxWidth()
-        .background(Color(0xFF0F172A))
-        .padding(vertical = 20.dp),
-    horizontalArrangement = Arrangement.Center,
-    verticalAlignment = Alignment.CenterVertically
-) {
-    Box(
-        modifier = Modifier
-            .size(56.dp)
-            .clip(CircleShape)
-            .background(Color(0xFF1E293B)),
-        contentAlignment = Alignment.Center
-    ) {
-        IconButton(onClick = {
-                        isPaused = !isPaused
-                        if (isPaused) locationViewModel.pauseTracking()
-                        else locationViewModel.resumeTracking(context)
-                    }) {
-            Icon(
-                if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                contentDescription = if (isPaused) "Retomar" else "Pausar",
-                tint = Color(0xFF94A3B8),
-                modifier = Modifier.size(24.dp)
-            )
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF0F172A))
+                .padding(vertical = 20.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF1E293B)),
+                contentAlignment = Alignment.Center
+            ) {
+                IconButton(onClick = {
+                    if (isPaused) RunService.send(context, RunService.ACTION_RESUME)
+                    else RunService.send(context, RunService.ACTION_PAUSE)
+                }) {
+                    Icon(
+                        if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                        contentDescription = if (isPaused) "Retomar" else "Pausar",
+                        tint = Color(0xFF94A3B8),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(24.dp))
+            Box(
+                modifier = Modifier
+                    .size(68.dp)
+                    .clip(CircleShape)
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                IconButton(onClick = { showStopDialog = true }) {
+                    Icon(
+                        Icons.Default.Stop,
+                        contentDescription = "Parar",
+                        tint = Color(0xFF0F172A),
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(24.dp))
+            Spacer(modifier = Modifier.size(56.dp))
         }
-    }
-    Spacer(modifier = Modifier.width(24.dp))
-    Box(
-        modifier = Modifier
-            .size(68.dp)
-            .clip(CircleShape)
-            .background(Color.White),
-        contentAlignment = Alignment.Center
-    ) {
-        IconButton(onClick = { showStopDialog = true }) {
-            Icon(
-                Icons.Default.Stop,
-                contentDescription = "Parar",
-                tint = Color(0xFF0F172A),
-                modifier = Modifier.size(28.dp)
-            )
-        }
-    }
-    Spacer(modifier = Modifier.width(24.dp))
-    Spacer(modifier = Modifier.size(56.dp))
-}
     }
 }
 
