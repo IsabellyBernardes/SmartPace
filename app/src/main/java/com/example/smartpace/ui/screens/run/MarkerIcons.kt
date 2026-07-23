@@ -7,10 +7,6 @@ import android.graphics.Paint
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 
-/**
- * Gera um ícone de marcador com o emoji do alerta dentro de um círculo branco
- * com borda laranja — para o alerta aparecer visualmente no mapa, não só o pin padrão.
- */
 fun emojiMarkerDescriptor(emoji: String): BitmapDescriptor {
     val size = 110
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)

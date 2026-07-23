@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     id("com.google.gms.google-services")
     alias(libs.plugins.secrets.gradle.plugin)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -61,6 +62,11 @@ dependencies {
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.play.services)
+
+    // Room (banco de dados local)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
 
     // Maps & Location
     implementation(libs.maps.compose)

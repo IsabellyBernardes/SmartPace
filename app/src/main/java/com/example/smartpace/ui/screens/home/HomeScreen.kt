@@ -45,8 +45,6 @@ fun HomeScreen(
     val weatherState by weatherViewModel.state.collectAsState()
     val context = LocalContext.current
 
-    // Recarrega ao abrir a Home: cobre o caso de o usuário logar depois que os
-    // ViewModels compartilhados já foram criados (com dados vazios).
     LaunchedEffect(Unit) {
         runViewModel.loadRuns()
         profileViewModel.loadProfile()
@@ -126,7 +124,7 @@ fun HomeHeader(name: String, weatherState: WeatherState) {
 
 @Composable
 fun WeatherChip(state: WeatherState) {
-    if (state !is WeatherState.Success) return  // some/silencioso enquanto carrega ou falha
+    if (state !is WeatherState.Success) return
     val info = state.info
     Row(
         modifier = Modifier
@@ -143,7 +141,6 @@ fun WeatherChip(state: WeatherState) {
             fontWeight = FontWeight.SemiBold,
             color = Color(0xFF0F172A)
         )
-        // Só mostra a descrição quando o tempo pede atenção (chuva, tempestade…)
         if (info.isBad && info.description.isNotEmpty()) {
             Spacer(modifier = Modifier.width(4.dp))
             Text(info.description, fontSize = 12.sp, color = Color(0xFF92400E))

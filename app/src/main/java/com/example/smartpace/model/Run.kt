@@ -8,6 +8,7 @@ data class Run(
     val date: String = "",
     val calories: Int = 0,
     val timestamp: Long = System.currentTimeMillis(),
+    val region: String = "",
     val routePoints: List<LatLngPoint> = emptyList()
 )
 

@@ -85,7 +85,6 @@ class WeatherViewModel : ViewModel() {
         }
     }
 
-    // Códigos WMO da Open-Meteo → emoji, descrição curta e se é tempo ruim para correr.
     private fun describeWeather(code: Int): Triple<String, String, Boolean> = when (code) {
         0 -> Triple("☀️", "Céu limpo", false)
         1, 2 -> Triple("⛅", "Parc. nublado", false)
@@ -104,7 +103,6 @@ class WeatherViewModel : ViewModel() {
     }
 
     companion object {
-        // Recife como fallback quando não há localização disponível.
         private val DEFAULT_LOCATION = -8.05 to -34.9
     }
 }

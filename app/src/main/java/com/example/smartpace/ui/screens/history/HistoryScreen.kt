@@ -135,8 +135,6 @@ fun HistoryScreen(navController: NavController, runViewModel: RunViewModel = vie
         }
 
         if (isLoading && allRuns.isEmpty()) {
-            // Enquanto o Firestore responde, mostra carregamento em vez de
-            // exibir prematuramente "sem corridas".
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -244,6 +242,9 @@ fun HistoryRunCard(run: Run, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("${run.distance} km", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
                 Text("${run.date} · ${run.duration}", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                if (run.region.isNotEmpty()) {
+                    Text("📍 ${run.region}", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text("${run.pace}/km", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))

@@ -40,7 +40,6 @@ fun RunDetailScreen(
             .fillMaxSize()
             .background(Color(0xFFF8FAFC))
     ) {
-        // Barra superior
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -102,7 +101,6 @@ private fun ColumnScope.RunDetailContent(run: Run) {
                 cameraPositionState = cameraPositionState,
                 uiSettings = MapUiSettings(zoomControlsEnabled = false, compassEnabled = false),
                 onMapLoaded = {
-                    // Enquadra a rota inteira só depois que o mapa terminou de carregar
                     val bounds = LatLngBounds.builder().apply {
                         routePoints.forEach { include(it) }
                     }.build()
@@ -123,7 +121,6 @@ private fun ColumnScope.RunDetailContent(run: Run) {
                 Marker(state = MarkerState(position = routePoints.last()), title = "Fim")
             }
         } else {
-            // Corridas antigas não têm rota GPS salva
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -143,7 +140,6 @@ private fun ColumnScope.RunDetailContent(run: Run) {
         }
     }
 
-    // Cartão de métricas
     Card(
         modifier = Modifier
             .fillMaxWidth()

@@ -135,11 +135,6 @@ fun SocialButton(text: String, onClick: () -> Unit) {
     }
 }
 
-/**
- * Miniatura da rota desenhada a partir dos pontos GPS salvos.
- * Normaliza lat/lng para o quadro preservando a proporção — leve o bastante
- * para renderizar em listas roláveis sem carregar tiles de mapa.
- */
 @Composable
 fun RouteThumbnail(
     points: List<LatLngPoint>,
@@ -166,13 +161,11 @@ fun RouteThumbnail(
             val spanLat = (maxLat - minLat).takeIf { it > 0 } ?: 1e-6
             val spanLng = (maxLng - minLng).takeIf { it > 0 } ?: 1e-6
 
-            // Escala uniforme para não distorcer o traçado da rota
             val scale = minOf(size.width / spanLng, size.height / spanLat)
             val offsetX = (size.width - spanLng * scale) / 2f
             val offsetY = (size.height - spanLat * scale) / 2f
 
             fun toX(lng: Double) = (offsetX + (lng - minLng) * scale).toFloat()
-            // Latitude cresce para cima, então invertemos o eixo Y
             fun toY(lat: Double) = (offsetY + (maxLat - lat) * scale).toFloat()
 
             val path = Path()
@@ -182,7 +175,6 @@ fun RouteThumbnail(
             }
             drawPath(path, color = lineColor, style = Stroke(width = 3f, cap = StrokeCap.Round))
 
-            // Marca início (verde) e fim (vermelho) do percurso
             drawCircle(Color(0xFF22C55E), radius = 4f, center = Offset(toX(points.first().lng), toY(points.first().lat)))
             drawCircle(Color(0xFFEF4444), radius = 4f, center = Offset(toX(points.last().lng), toY(points.last().lat)))
         }

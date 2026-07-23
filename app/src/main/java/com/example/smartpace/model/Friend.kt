@@ -1,6 +1,5 @@
 package com.example.smartpace.model
 
-/** Solicitação de amizade entre dois usuários. */
 data class FriendRequest(
     val id: String = "",
     val fromUid: String = "",
@@ -11,7 +10,6 @@ data class FriendRequest(
     val createdAt: Long = System.currentTimeMillis()
 )
 
-/** Amigo já aceito, guardado na subcoleção do usuário. */
 data class Friend(
     val uid: String = "",
     val name: String = "",

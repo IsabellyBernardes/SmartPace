@@ -69,7 +69,6 @@ fun FriendsScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Busca por username
             OutlinedTextField(
                 value = query,
                 onValueChange = {
@@ -116,7 +115,6 @@ fun FriendsScreen(
                 is SearchState.Idle -> {}
             }
 
-            // Solicitações recebidas
             if (requests.isNotEmpty()) {
                 SectionTitle("SOLICITAÇÕES (${requests.size})")
                 requests.forEach { req ->
@@ -128,7 +126,6 @@ fun FriendsScreen(
                 }
             }
 
-            // Lista de amigos
             SectionTitle("MEUS AMIGOS (${friends.size})")
             if (friends.isEmpty()) {
                 Text(
