@@ -188,8 +188,11 @@ class RunService : Service() {
     private fun buildNotification(text: String): Notification {
         val openApp = PendingIntent.getActivity(
             this, 0,
-            Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE
+            Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                putExtra(EXTRA_DESTINATION, DEST_RUN)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("SmartPace • Corrida em andamento")
@@ -222,6 +225,9 @@ class RunService : Service() {
         const val ACTION_PAUSE = "com.example.smartpace.RUN_PAUSE"
         const val ACTION_RESUME = "com.example.smartpace.RUN_RESUME"
         const val ACTION_STOP = "com.example.smartpace.RUN_STOP"
+
+        const val EXTRA_DESTINATION = "destination"
+        const val DEST_RUN = "run"
 
         private const val CHANNEL_ID = "run_tracking"
         private const val NOTIF_ID = 1001

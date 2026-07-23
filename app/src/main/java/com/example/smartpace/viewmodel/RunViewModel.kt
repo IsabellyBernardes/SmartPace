@@ -1,11 +1,13 @@
 package com.example.smartpace.viewmodel
 
+import android.app.Application
 import android.content.Context
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smartpace.model.LatLngPoint
 import com.example.smartpace.model.Run
 import com.example.smartpace.repository.FirestoreRepository
+import com.example.smartpace.repository.RunRepository
 import com.example.smartpace.utils.paceToSeconds
 import com.example.smartpace.utils.parseDurationToSeconds
 import com.example.smartpace.utils.reverseGeocodeRegion
@@ -22,9 +24,10 @@ sealed class RunsState {
     data class Error(val message: String) : RunsState()
 }
 
-class RunViewModel : ViewModel() {
+class RunViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val repository = FirestoreRepository()
+    private val repository = RunRepository(app)
+    private val firestore = FirestoreRepository()
 
     private val _runsState = MutableStateFlow<RunsState>(RunsState.Loading)
     val runsState: StateFlow<RunsState> = _runsState
@@ -33,6 +36,10 @@ class RunViewModel : ViewModel() {
     val runs: StateFlow<List<Run>> = _runs
 
     init {
+        // A lista vem sempre do Room (fonte local reativa).
+        viewModelScope.launch {
+            repository.runs().collect { _runs.value = it }
+        }
         loadRuns()
     }
 
@@ -40,15 +47,13 @@ class RunViewModel : ViewModel() {
         viewModelScope.launch {
             _runsState.value = RunsState.Loading
             try {
-                val firestoreRuns = repository.getRuns()
-                _runs.value = firestoreRuns
-                _runsState.value = RunsState.Success(firestoreRuns)
+                val remote = repository.refresh()
+                _runsState.value = RunsState.Success(remote)
                 // Mantém o agregado do perfil atualizado (visível aos amigos),
                 // mesmo para corridas salvas antes desta funcionalidade existir.
-                try { syncStats(firestoreRuns) } catch (e: Exception) { }
+                try { syncStats(remote) } catch (e: Exception) { }
             } catch (e: Exception) {
-                _runs.value = emptyList()
-                _runsState.value = RunsState.Success(emptyList())
+                _runsState.value = RunsState.Success(_runs.value)
             }
         }
     }
@@ -69,7 +74,7 @@ class RunViewModel : ViewModel() {
                 val pace = "%d:%02d".format(paceSeconds / 60, paceSeconds % 60)
                 val dateFormat = SimpleDateFormat("dd/MM, HH:mm", Locale("pt", "BR"))
                 val date = dateFormat.format(Date())
-                val weightKg = repository.getUserProfile()?.weightKg ?: DEFAULT_WEIGHT_KG
+                val weightKg = firestore.getUserProfile()?.weightKg ?: DEFAULT_WEIGHT_KG
                 val estimatedCalories = if (calories > 0) calories
                     else estimateCalories(distanceKm, elapsedSeconds, weightKg)
 
@@ -89,9 +94,8 @@ class RunViewModel : ViewModel() {
                     region = region,
                     routePoints = routePoints
                 )
-                repository.saveRun(run)
-                val updated = repository.getRuns()
-                _runs.value = updated
+                repository.save(run)
+                val updated = repository.refresh()
                 _runsState.value = RunsState.Success(updated)
                 syncStats(updated)
             } catch (e: Exception) { }
@@ -107,7 +111,7 @@ class RunViewModel : ViewModel() {
             val paceSec = (totalDurationSec / totalKm).toInt()
             "%d:%02d".format(paceSec / 60, paceSec % 60)
         } else ""
-        repository.updateUserStats(totalRuns, totalKm, avgPace)
+        firestore.updateUserStats(totalRuns, totalKm, avgPace)
     }
 
     // Estimativa por MET: kcal = MET * peso(kg) * horas.

@@ -1,5 +1,7 @@
 package com.example.smartpace.navigation
 
+import android.content.Intent
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,9 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.util.Consumer
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -40,6 +44,7 @@ import com.example.smartpace.ui.screens.home.HomeScreen
 import com.example.smartpace.ui.screens.profile.ProfileScreen
 import com.example.smartpace.ui.screens.run.RunScreen
 import com.example.smartpace.ui.screens.run.RunDetailScreen
+import com.example.smartpace.service.RunService
 import com.example.smartpace.viewmodel.ProfileViewModel
 import com.example.smartpace.viewmodel.RunViewModel
 
@@ -76,6 +81,24 @@ fun SmartPaceApp() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = currentRoute in mainRoutes
+
+    // Abre a tela de corrida ao tocar na notificação do serviço de rastreamento.
+    val activity = LocalContext.current as? ComponentActivity
+    LaunchedEffect(Unit) {
+        if (activity?.intent?.getStringExtra(RunService.EXTRA_DESTINATION) == RunService.DEST_RUN) {
+            navController.navigate(Screen.Run.route)
+            activity.intent.removeExtra(RunService.EXTRA_DESTINATION)
+        }
+    }
+    DisposableEffect(activity) {
+        val listener = Consumer<Intent> { intent ->
+            if (intent.getStringExtra(RunService.EXTRA_DESTINATION) == RunService.DEST_RUN) {
+                navController.navigate(Screen.Run.route)
+            }
+        }
+        activity?.addOnNewIntentListener(listener)
+        onDispose { activity?.removeOnNewIntentListener(listener) }
+    }
 
     Scaffold(
         containerColor = Color(0xFFF8FAFC),
