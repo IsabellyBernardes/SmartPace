@@ -36,7 +36,6 @@ class RunViewModel(app: Application) : AndroidViewModel(app) {
     val runs: StateFlow<List<Run>> = _runs
 
     init {
-        // A lista vem sempre do Room (fonte local reativa).
         viewModelScope.launch {
             repository.runs().collect { _runs.value = it }
         }
@@ -49,8 +48,6 @@ class RunViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val remote = repository.refresh()
                 _runsState.value = RunsState.Success(remote)
-                // Mantém o agregado do perfil atualizado (visível aos amigos),
-                // mesmo para corridas salvas antes desta funcionalidade existir.
                 try { syncStats(remote) } catch (e: Exception) { }
             } catch (e: Exception) {
                 _runsState.value = RunsState.Success(_runs.value)
@@ -83,8 +80,6 @@ class RunViewModel(app: Application) : AndroidViewModel(app) {
                     reverseGeocodeRegion(appContext, start.lat, start.lng) else ""
 
                 val run = Run(
-                    // Arredonda para 2 casas sem passar por String (evita bug de locale:
-                    // pt-BR formata com vírgula e toDouble() só aceita ponto).
                     distance = kotlin.math.round(distanceKm * 100) / 100.0,
                     duration = duration,
                     pace = pace,
@@ -102,7 +97,6 @@ class RunViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Grava no perfil as estatísticas agregadas, para os amigos poderem ver. */
     private suspend fun syncStats(runs: List<Run>) {
         val totalRuns = runs.size
         val totalKm = runs.sumOf { it.distance }
@@ -114,8 +108,6 @@ class RunViewModel(app: Application) : AndroidViewModel(app) {
         firestore.updateUserStats(totalRuns, totalKm, avgPace)
     }
 
-    // Estimativa por MET: kcal = MET * peso(kg) * horas.
-    // No intervalo de corrida, o MET aproxima-se da velocidade em km/h.
     private fun estimateCalories(
         distanceKm: Double,
         elapsedSeconds: Int,

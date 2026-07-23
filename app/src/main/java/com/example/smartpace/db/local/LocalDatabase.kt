@@ -4,10 +4,6 @@ import android.content.Context
 import androidx.room.Room
 import kotlinx.coroutines.flow.Flow
 
-/**
- * Fachada sobre o Room: constrói o banco e expõe as operações de corrida.
- * O restante do app não conhece detalhes do Room, só esta classe.
- */
 class LocalDatabase(context: Context, databaseName: String) {
 
     private val roomDB = Room.databaseBuilder(

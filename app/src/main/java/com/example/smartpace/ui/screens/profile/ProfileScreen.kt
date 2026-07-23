@@ -434,7 +434,6 @@ fun UsernameDialog(
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    // username válido: 3-20 chars, apenas letras, números, ponto e underscore
     val normalized = text.lowercase().trim()
     val isValid = normalized.matches(Regex("^[a-z0-9._]{3,20}$"))
 

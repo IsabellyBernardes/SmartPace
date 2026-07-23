@@ -34,11 +34,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/**
- * Serviço em primeiro plano que mantém o rastreamento de GPS ativo mesmo com o
- * app em background: soma a distância, conta o tempo, checa a proximidade dos
- * alertas comunitários e vibra ao entrar no raio de um deles.
- */
 class RunService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -110,7 +105,6 @@ class RunService : Service() {
         updateNotification()
     }
 
-    /** Avisa (uma vez) ao entrar no raio de um alerta ainda não sinalizado. */
     private fun checkProximity(location: Location) {
         for (alert in alerts) {
             if (alert.id.isEmpty() || alert.id in alertedIds) continue
@@ -233,7 +227,6 @@ class RunService : Service() {
         private const val NOTIF_ID = 1001
         private const val PROXIMITY_RADIUS_M = 100f
 
-        /** Dispara uma ação no serviço (o START sobe como foreground). */
         fun send(context: Context, action: String) {
             val intent = Intent(context, RunService::class.java).apply { this.action = action }
             if (action == ACTION_START) {

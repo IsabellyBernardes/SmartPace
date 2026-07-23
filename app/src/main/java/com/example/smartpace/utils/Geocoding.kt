@@ -6,10 +6,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-/**
- * Converte coordenadas no nome da região (bairro, cidade) usando o Geocoder
- * nativo do Android. Retorna "" se não conseguir resolver.
- */
 @Suppress("DEPRECATION")
 suspend fun reverseGeocodeRegion(context: Context, lat: Double, lng: Double): String =
     withContext(Dispatchers.IO) {

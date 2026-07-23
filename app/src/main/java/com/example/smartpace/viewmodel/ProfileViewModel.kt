@@ -31,8 +31,6 @@ class ProfileViewModel : ViewModel() {
                 if (firestoreProfile != null) {
                     _profile.value = firestoreProfile
                 } else {
-                    // Documento ainda não existe: cria com memberSince/metas padrão
-                    // para que futuras gravações (peso, username) tenham onde persistir.
                     repository.createUserProfileIfNotExists(name, email)
                     _profile.value = repository.getUserProfile()
                         ?: UserProfile(id = firebaseUser?.uid ?: "", name = name, email = email)
@@ -57,8 +55,6 @@ class ProfileViewModel : ViewModel() {
         _profile.value = updated
         viewModelScope.launch {
             try {
-                // Grava o perfil inteiro (merge) — cria o doc se não existir,
-                // sem sobrescrever os demais campos.
                 repository.saveUserProfile(updated)
             } catch (e: Exception) { }
         }
@@ -74,7 +70,6 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
-    /** Tenta reservar o username; chama onResult(true) se salvou, false se já em uso. */
     fun updateUsername(username: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             val ok = repository.setUsername(username)

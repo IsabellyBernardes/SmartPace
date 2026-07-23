@@ -135,8 +135,6 @@ fun HistoryScreen(navController: NavController, runViewModel: RunViewModel = vie
         }
 
         if (isLoading && allRuns.isEmpty()) {
-            // Enquanto o Firestore responde, mostra carregamento em vez de
-            // exibir prematuramente "sem corridas".
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

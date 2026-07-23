@@ -5,11 +5,6 @@ import androidx.room.PrimaryKey
 import com.example.smartpace.model.LatLngPoint
 import com.example.smartpace.model.Run
 
-/**
- * Entidade da tabela local de corridas. Seguindo a recomendação do Google,
- * é uma classe separada do modelo de UI ([Run]), com conversões entre si.
- * Os pontos da rota são guardados como texto serializado ("lat,lng;lat,lng").
- */
 @Entity(tableName = "runs")
 data class LocalRun(
     @PrimaryKey val id: String,

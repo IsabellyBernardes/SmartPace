@@ -82,7 +82,6 @@ fun SmartPaceApp() {
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = currentRoute in mainRoutes
 
-    // Abre a tela de corrida ao tocar na notificação do serviço de rastreamento.
     val activity = LocalContext.current as? ComponentActivity
     LaunchedEffect(Unit) {
         if (activity?.intent?.getStringExtra(RunService.EXTRA_DESTINATION) == RunService.DEST_RUN) {
@@ -211,9 +210,6 @@ fun SmartPaceNavGraph(
     startDestination: String = Screen.Login.route,
     modifier: Modifier = Modifier,
 ) {
-    // ViewModels compartilhados no escopo da Activity: garantem que a lista de
-    // corridas e o perfil sejam os mesmos em todas as telas, e que a gravação de
-    // uma corrida sobreviva à navegação (não é cancelada ao sair da tela de corrida).
     val runViewModel: RunViewModel = viewModel()
     val profileViewModel: ProfileViewModel = viewModel()
 

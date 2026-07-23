@@ -63,7 +63,6 @@ fun RunScreen(
         )
     }
 
-    // Estado da corrida vem do serviço (que continua em background).
     val currentLocation by RunTracker.currentLocation.collectAsState()
     val routePoints by RunTracker.routePoints.collectAsState()
     val distanceMeters by RunTracker.distanceMeters.collectAsState()
@@ -93,7 +92,6 @@ fun RunScreen(
         )
     }
 
-    // Inicia o serviço ao entrar (se ainda não houver corrida em andamento).
     LaunchedEffect(Unit) {
         val permissions = buildList {
             add(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -261,7 +259,6 @@ fun RunScreen(
             }
         }
 
-        // Aviso de alerta próximo (também vibra pelo serviço)
         nearbyAlert?.let { alert ->
             Box(
                 modifier = Modifier

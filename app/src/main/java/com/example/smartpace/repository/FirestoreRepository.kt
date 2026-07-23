@@ -111,7 +111,6 @@ class FirestoreRepository {
 
     private fun normalizeUsername(raw: String) = raw.lowercase().trim()
 
-    /** Sincroniza estatísticas agregadas no perfil, visíveis para amigos. */
     suspend fun updateUserStats(totalRuns: Int, totalKm: Double, avgPace: String) {
         if (userId.isEmpty()) return
         db.collection("users")
@@ -136,16 +135,11 @@ class FirestoreRepository {
         }
     }
 
-    /** Verifica se o username está livre (ou já pertence ao próprio usuário). */
     suspend fun isUsernameAvailable(username: String): Boolean {
         val doc = db.collection("usernames").document(normalizeUsername(username)).get().await()
         return !doc.exists() || doc.getString("uid") == userId
     }
 
-    /**
-     * Reserva o username de forma atômica: garante unicidade no índice `usernames`,
-     * libera o antigo e grava no perfil. Retorna false se já estiver em uso por outro.
-     */
     suspend fun setUsername(username: String): Boolean {
         val normalized = normalizeUsername(username)
         val newRef = db.collection("usernames").document(normalized)
@@ -172,7 +166,6 @@ class FirestoreRepository {
 
     // ─── Amizades ────────────────────────────────────────────────
 
-    /** Busca um usuário pelo username exato via índice `usernames`. */
     suspend fun searchUserByUsername(username: String): UserProfile? {
         val normalized = normalizeUsername(username)
         if (normalized.isEmpty() || normalized == getUserProfile()?.username) return null
@@ -181,7 +174,6 @@ class FirestoreRepository {
         return getUserProfileById(uid)
     }
 
-    /** Envia solicitação, evitando duplicar uma já pendente. */
     suspend fun sendFriendRequest(toUid: String) {
         val existing = db.collection("friend_requests")
             .whereEqualTo("fromUid", userId)
@@ -215,7 +207,6 @@ class FirestoreRepository {
         }
     }
 
-    /** Aceita: marca a solicitação e grava o vínculo nos dois lados (batch). */
     suspend fun acceptFriendRequest(request: FriendRequest) {
         val me = getUserProfile()
         val batch = db.batch()
